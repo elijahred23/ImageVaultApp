@@ -26,29 +26,39 @@ public class ImageController: Controller
     [HttpPost]
     public async Task<IActionResult> Upload(ImageUploadViewModel model)
     {
-        if(model.File == null || model.File.Length == 0)
+        string finalImageUrl;
+
+        if (!string.IsNullOrWhiteSpace(model.ImageUrl))
         {
-            ModelState.AddModelError("", "Please selecta file.");
+            finalImageUrl = model.ImageUrl;
+        }
+        else if (model.File != null && model.File.Length > 0)
+        {
+            using var ms = new MemoryStream();
+
+            await model.File.CopyToAsync(ms);
+
+            var bytes = ms.ToArray();
+
+            var base64 = Convert.ToBase64String(bytes);
+
+            finalImageUrl = $"data:{model.File.ContentType};base64,{base64}";
+        } else
+        {
+            ModelState.AddModelError("", "Please select a file.");
             return View(model);
         }
 
-        using var memoryStream = new MemoryStream();
-
-        await model.File.CopyToAsync(memoryStream);
-
-        var fileBytes = memoryStream.ToArray();
-
-        var base64 = Convert.ToBase64String(fileBytes);
-
+        int id = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
         var image = new Image
         {
-            UserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value),
+            UserId = id,
             Title = model.Title,
             Description = model.Description,
             IsNSFW = model.IsNSFW,
-            MimeType = model.File.ContentType,
-            FileSizeBytes = model.File.Length,
-            ImageUrl = $"data:{model.File.ContentType};base64,{base64}"
+            MimeType = model.File?.ContentType,
+            FileSizeBytes = model.File?.Length,
+            ImageUrl = finalImageUrl,
         };
 
         _vaultContext.Images.Add(image);
