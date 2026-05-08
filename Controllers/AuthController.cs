@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.AspNetCore.Identity;
+using ImageVaultApp.Data;
+using ImageVaultApp.Models;
+
 
 public class AuthController : Controller
 {

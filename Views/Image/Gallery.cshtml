@@ -1,0 +1,22 @@
+@model List<Image>
+
+<h2>Gallery</h2>
+
+@foreach (var img in Model)
+{
+    <div style="margin-bottom:20px">
+        <p>@img.Title</p>
+
+        @if(img.IsNSFW)
+        {
+            <div style="filter: blur(15px);">
+                <img src="@img.ImageUrl" width="300" />
+            </div>
+            <p>NSFW Content (blurred)</p>
+        }
+        else 
+        {
+            <img src="@img.ImageUrl" width="300" />
+        }
+    </div>
+}
