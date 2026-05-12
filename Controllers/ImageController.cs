@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using ImageVaultApp.Data;
 using ImageVaultApp.ViewModels;
 using ImageVaultApp.Models;
+using Microsoft.AspNetCore.Components.Web;
+using System.ComponentModel;
 
 
 
@@ -81,5 +83,47 @@ public class ImageController: Controller
         ViewBag.Settings = settings;
 
         return View(images);
+    }
+    public async Task<IActionResult> Edit(int id)
+    {
+        var image = await _vaultContext.Images.FindAsync(id);
+
+        if(image == null) return NotFound();
+
+
+        var model = new ImageEditViewModel
+        {
+            Id = image.Id,
+            Title = image.Title,
+            Description = image.Description,
+            IsNSFW = image.IsNSFW 
+        };
+        return View(model);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Edit(ImageEditViewModel model)
+    {
+        if(!ModelState.IsValid)
+            return View(model);
+
+        var image = await _vaultContext.Images.FindAsync(model.Id);
+
+
+        if(image == null) return NotFound();
+
+        if(image.UserId != int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value))
+            return Forbid();    
+
+        image.Title = model.Title;
+
+        image.Description = model.Description;
+
+        image.IsNSFW = model.IsNSFW;
+
+        await _vaultContext.SaveChangesAsync();
+
+
+        return RedirectToAction("Gallery");
     }
 }
