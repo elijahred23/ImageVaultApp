@@ -70,9 +70,15 @@ public class ImageController: Controller
     [HttpGet]
     public async Task<IActionResult> Gallery()
     {
+        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        var settings = await _vaultContext.UserSettings
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
         var images = await _vaultContext.Images
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
+
+        ViewBag.Settings = settings;
 
         return View(images);
     }

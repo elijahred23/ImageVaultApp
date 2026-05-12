@@ -1,0 +1,26 @@
+@model UserSettingsViewModel 
+<h2>User Settings</h2>
+
+
+<form method = "post">
+
+    <div>
+        <label>
+            <input type="checkbox" asp-for="AllowNSFW" />
+            Allow NSFW Content
+        </label>
+    </div>
+
+    <div>
+        <label>
+            <input type="checkbox" asp-for="BlurNSFW" />
+            Blur NSFW Content
+        </label>
+    </div>
+
+    <button type="submit">Save Settings</button>
+    @if (ViewBag.Message != null)
+    {
+        <p style="color:green">@ViewBag.Message</p>
+    }
+</form>

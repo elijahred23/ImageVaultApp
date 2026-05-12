@@ -1,21 +1,24 @@
 @model List<Image>
+@{
+    var settings = (UserSettings) ViewBag.Settings;
+}
 
 <h2>Gallery</h2>
 
 @foreach (var img in Model)
 {
     <div style="margin-bottom:20px">
-        <p>@img.Title</p>
-
-        @if(img.IsNSFW)
+        @if(img.IsNSFW && !settings.AllowNSFW)
         {
-            <div style="filter: blur(15px);">
+            <p>NSFW Hidden</p>
+        }
+        else if (img.IsNSFW && settings.BlurNSFW)
+        {
+            <div style="filter:blur(15px);">
                 <img src="@img.ImageUrl" width="300" />
             </div>
-            <p>NSFW Content (blurred)</p>
         }
-        else 
-        {
+        else {
             <img src="@img.ImageUrl" width="300" />
         }
     </div>
