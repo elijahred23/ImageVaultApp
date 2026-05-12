@@ -96,7 +96,8 @@ public class ImageController: Controller
             Id = image.Id,
             Title = image.Title,
             Description = image.Description,
-            IsNSFW = image.IsNSFW 
+            IsNSFW = image.IsNSFW ,
+            ExistingImagePath = image.ImageUrl
         };
         return View(model);
     }
@@ -123,6 +124,24 @@ public class ImageController: Controller
 
         await _vaultContext.SaveChangesAsync();
 
+
+        return RedirectToAction("Gallery");
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var image = await _vaultContext.Images.FindAsync(id);
+
+        if(image == null) NotFound();
+
+        if(image.UserId != int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value))
+            return Forbid();
+
+
+        _vaultContext.Images.Remove(image);
+
+        await _vaultContext.SaveChangesAsync();
 
         return RedirectToAction("Gallery");
     }
