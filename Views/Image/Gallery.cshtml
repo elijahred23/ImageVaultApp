@@ -10,7 +10,7 @@
     <div style="margin-bottom:20px">
         @if(img.IsNSFW && !settings.AllowNSFW)
         {
-            <p>NSFW Hidden</p>
+            <span></span>
         }
         else if (img.IsNSFW && settings.BlurNSFW)
         {
@@ -20,7 +20,7 @@
         }
         else {
             <img src="@img.ImageUrl" width="300" />
+            <a asp-action="Edit" asp-route-id="@img.Id">Edit</a>
         }
-        <a asp-action="Edit" asp-route-id="@img.Id">Edit</a>
     </div>
 }
