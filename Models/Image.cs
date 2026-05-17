@@ -1,5 +1,6 @@
 using Microsoft.Identity.Client;
 using Microsoft.Net.Http.Headers;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public class Image
 {
@@ -13,4 +14,6 @@ public class Image
     public string? MimeType {get;set;}
     public long? FileSizeBytes {get;set;}
     public DateTime CreatedAt {get;set;} = DateTime.UtcNow;
+    [NotMapped]
+    public bool IsFavorited {get;set;} = false;
 }

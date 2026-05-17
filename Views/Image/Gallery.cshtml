@@ -1,4 +1,5 @@
 @model IEnumerable<Image>
+@Html.AntiForgeryToken()
 @{
     var settings = ViewBag.Settings as UserSettings;
     var allowNSFW = settings?.AllowNSFW ?? false;
@@ -52,11 +53,10 @@
                             <a asp-action="Details" asp-route-id="@image.Id">
                                 <img src="@image.ImageUrl" class="card-img-top @(isBlurred ? "nsfw-blur-effect" : "") object-fit-cover" alt="@image.Title" />
                             </a>
-                            <form asp-action="ToggleFavorite" asp-route-id="@image.Id" method="post" class="position-absolute top-0 end-0 m-2">
-                                <button type="submit" class="btn btn-sm @(isFavorited ? "btn-danger" : "btn-outline-secondary") rounded-circle">
-                                    <span class="@(isFavorited ? "text-danger" : "text-muted")">@(isFavorited ? "❤" : "♡")</span>
-                                </button>
-                            </form>
+                            <button class="btn btn-sm favorite-toggle @(isFavorited ? "btn-danger" : "btn-outline-danger") position-absolute top-0 end-0 m-2 rounded-circle"
+                                data-image-id="@image.Id">
+                                <span class="@(isFavorited ? "bi-heart-fill" : "bi-heart")"></span>
+                            </button>
                         </div>
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">@image.Title</h5>

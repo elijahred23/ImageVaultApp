@@ -89,6 +89,11 @@ public class ImageController: Controller
         var images = await query
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
+        
+        foreach (var image in images)
+        {
+            image.IsFavorited = await _vaultContext.Favorites.AnyAsync(f => f.UserId == userId && f.ImageId == image.Id);
+        }
 
         var favoriteImageIds = await _vaultContext.Favorites
             .Where(f => f.UserId == userId)
@@ -170,6 +175,7 @@ public class ImageController: Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleFavorite(int id)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
@@ -180,6 +186,7 @@ public class ImageController: Controller
 
         var favorite = await _vaultContext.Favorites.FirstOrDefaultAsync(f => f.UserId == userId && f.ImageId == id);
 
+        bool isFavorited;
 
         if(favorite == null)
         {
@@ -188,15 +195,17 @@ public class ImageController: Controller
                 UserId = userId,
                 ImageId = id
             });
+            isFavorited = true;
         }
         else
         {
             _vaultContext.Favorites.Remove(favorite);
+            isFavorited = false;
         }
 
         await _vaultContext.SaveChangesAsync();
 
-        return RedirectToAction("Gallery");
+        return Json(new { success = true, isFavorited });   
     }
     [HttpGet]
     public async Task<IActionResult> Favorites(string searchTerm)
@@ -221,6 +230,11 @@ public class ImageController: Controller
             .ToListAsync();
 
         var favoriteImageIds = images.Select(i => i.Id).ToList();
+
+        foreach(var img in images)
+        {
+            img.IsFavorited = true;
+        }
 
         ViewBag.Settings = settings;
 
