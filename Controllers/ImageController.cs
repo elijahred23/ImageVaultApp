@@ -70,17 +70,26 @@ public class ImageController: Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Gallery()
+    public async Task<IActionResult> Gallery(string searchTerm)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
         var settings = await _vaultContext.UserSettings
             .FirstOrDefaultAsync(s => s.UserId == userId);
 
-        var images = await _vaultContext.Images
-            .OrderByDescending(i => i.CreatedAt)
-            .ToListAsync();
+        var query = _vaultContext.Images.Where(i => i.UserId == userId);
+
+
+        if(!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where(i => (i.Title != null && i.Title.Contains(searchTerm)) || (i.Description != null && i.Description.Contains(searchTerm)));
+            ViewBag.SearchTerm = searchTerm;
+        }
 
         ViewBag.Settings = settings;
+
+        var images = await query
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync();
 
         return View(images);
     }
@@ -133,7 +142,7 @@ public class ImageController: Controller
     {
         var image = await _vaultContext.Images.FindAsync(id);
 
-        if(image == null) NotFound();
+        if(image == null) return NotFound();
 
         if(image.UserId != int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value))
             return Forbid();
