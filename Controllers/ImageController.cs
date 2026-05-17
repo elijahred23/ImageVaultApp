@@ -90,15 +90,15 @@ public class ImageController: Controller
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
         
-        foreach (var image in images)
-        {
-            image.IsFavorited = await _vaultContext.Favorites.AnyAsync(f => f.UserId == userId && f.ImageId == image.Id);
-        }
-
         var favoriteImageIds = await _vaultContext.Favorites
             .Where(f => f.UserId == userId)
             .Select(f => f.ImageId)
             .ToListAsync();
+
+        foreach (var image in images)
+        {
+            image.IsFavorited = favoriteImageIds.Contains(image.Id);
+        }
 
         ViewBag.Settings = settings;
         ViewBag.FavoriteImageIds = favoriteImageIds;
@@ -176,15 +176,15 @@ public class ImageController: Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ToggleFavorite(int id)
+    public async Task<IActionResult> ToggleFavorite(int imageId)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
 
-        var imageExists = await _vaultContext.Images.AnyAsync(i => i.Id == id && i.UserId == userId);
+        var imageExists = await _vaultContext.Images.AnyAsync(i => i.Id == imageId && i.UserId == userId);
 
         if(!imageExists) return NotFound();
 
-        var favorite = await _vaultContext.Favorites.FirstOrDefaultAsync(f => f.UserId == userId && f.ImageId == id);
+        var favorite = await _vaultContext.Favorites.FirstOrDefaultAsync(f => f.UserId == userId && f.ImageId == imageId);
 
         bool isFavorited;
 
@@ -193,7 +193,7 @@ public class ImageController: Controller
             _vaultContext.Favorites.Add(new Favorite
             {
                 UserId = userId,
-                ImageId = id
+                ImageId = imageId
             });
             isFavorited = true;
         }

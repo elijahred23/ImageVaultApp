@@ -3,21 +3,29 @@ $(function() {
     $('.favorite-toggle').on('click', function(e) {
         const $btn = $(this);
 
-        const imageId = $btn.data('id');
+        const imageId = $btn.data('image-id');
 
         const token = $('input[name="__RequestVerificationToken"]').val();
 
         $.ajax({
-            url: '/Image/ToggleFavorite/',
+            url: '/Image/ToggleFavorite',
             type: "POST",
-            data: {id: imageId },
+            data: {
+                imageId: imageId, // Renamed from id
+                __RequestVerificationToken: token
+             },
             headers: {
                 "RequestVerificationToken": token
             },
             success: function(response) {
                 if(response.success){
-                    $btn.toggleClass("btn-danger btn-outline-danger");
-                    $btn.find('.star-icon').text(response.isFavorite ? "❤" : "♡");
+                    if(response.isFavorited){
+                        $btn.removeClass('btn-outline-danger').addClass('btn-danger');
+                    } else {
+                        $btn.removeClass("btn-danger").addClass("btn-outline-danger");
+                    }
+
+                    $btn.find('.favorite-icon').toggleClass('fas').toggleClass('far');
                 }
             },
             error: function() {
