@@ -1,0 +1,43 @@
+@model IEnumerable<Image>
+@{
+    ViewData["Title"] = "Your Favorites";
+    var settings = ViewBag.Settings as UserSettings;
+    var allowNSFW = settings?.AllowNSFW ?? false;
+    var blurNSFW = settings?.BlurNSFW ?? true;
+    var favoriteImageIds = ViewBag.FavoriteImageIds as List<int> ?? new List<int>();
+}
+
+<div class="container py-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-3 border-bottom pb-4">
+        <div>
+            <h1 class="fw-bold mb-0 text-primary">Your Favorites</h1>
+            <p class="text-muted">Browsing @Model.Count() favorited images in your collection</p>
+        </div>
+    </div>
+
+    @if(!Model.Any())
+    {
+        <div class="text-center py-5 border-rounded-4 bg-light shadow-sm">
+            <p class="text-muted mb-0">You haven't favorited any images yet.</p>
+        </div>
+    }
+    else {
+        <div class="row rows-cols-1 rows-cols-sm-2 row-cols-3 row-cols-md-3 row-cols-lg-4 g-4">
+            @foreach(var image in Model)
+            {
+                if(image.IsNSFW && !allowNSFW)
+                {
+                    continue;
+                }
+                var isBlurred = image.IsNSFW && blurNSFW;
+
+                <div class="col">
+                    <div class="card h-100 shadow-sm">
+                        <a asp-action="Details" asp-route-id="@image.Id">
+                            <img src="@image.ImageUrl" class="card-img-top @(isBlurred ? "nsfw-blur-effect" : "") object-fit-cover" alt="@image.Title" />
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    }

@@ -140,6 +140,13 @@ public class ImageController: Controller
 
         await _vaultContext.SaveChangesAsync();
 
+        var referer = Request.Headers["Referer"].ToString();
+
+        if(!string.IsNullOrEmpty(referer))
+        {
+            return Redirect(referer);
+        }
+
 
         return RedirectToAction("Gallery");
     }
@@ -190,5 +197,35 @@ public class ImageController: Controller
         await _vaultContext.SaveChangesAsync();
 
         return RedirectToAction("Gallery");
+    }
+    [HttpGet]
+    public async Task<IActionResult> Favorites(string searchTerm)
+    {
+        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+
+
+        var settings = await _vaultContext.UserSettings 
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        var query = _vaultContext.Images 
+        .Where(i => i.UserId == userId && _vaultContext.Favorites.Any(f => f.ImageId == i.Id && f.UserId == userId));
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where( i => (i.Title != null && i.Title.Contains(searchTerm)) || (i.Description != null && i.Description.Contains(searchTerm)));
+            ViewBag.SearchTerm = searchTerm;
+        }
+
+        var images = await query 
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync();
+
+        var favoriteImageIds = images.Select(i => i.Id).ToList();
+
+        ViewBag.Settings = settings;
+
+        ViewBag.FavoriteImageIds = favoriteImageIds;
+
+        return View(images);
     }
 }
