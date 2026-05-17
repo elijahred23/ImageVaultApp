@@ -10,6 +10,7 @@ namespace ImageVaultApp.Data
             :base(options) {}
         public DbSet<UserSettings> UserSettings => Set<UserSettings>();
         public DbSet<Image> Images => Set<Image>();
+        public DbSet<Favorite> Favorites => Set<Favorite>();
 
     }
 }

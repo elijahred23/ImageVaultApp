@@ -85,11 +85,18 @@ public class ImageController: Controller
             ViewBag.SearchTerm = searchTerm;
         }
 
-        ViewBag.Settings = settings;
 
         var images = await query
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
+
+        var favoriteImageIds = await _vaultContext.Favorites
+            .Where(f => f.UserId == userId)
+            .Select(f => f.ImageId)
+            .ToListAsync();
+
+        ViewBag.Settings = settings;
+        ViewBag.FavoriteImageIds = favoriteImageIds;
 
         return View(images);
     }
@@ -149,6 +156,36 @@ public class ImageController: Controller
 
 
         _vaultContext.Images.Remove(image);
+
+        await _vaultContext.SaveChangesAsync();
+
+        return RedirectToAction("Gallery");
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ToggleFavorite(int id)
+    {
+        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+
+        var imageExists = await _vaultContext.Images.AnyAsync(i => i.Id == id && i.UserId == userId);
+
+        if(!imageExists) return NotFound();
+
+        var favorite = await _vaultContext.Favorites.FirstOrDefaultAsync(f => f.UserId == userId && f.ImageId == id);
+
+
+        if(favorite == null)
+        {
+            _vaultContext.Favorites.Add(new Favorite
+            {
+                UserId = userId,
+                ImageId = id
+            });
+        }
+        else
+        {
+            _vaultContext.Favorites.Remove(favorite);
+        }
 
         await _vaultContext.SaveChangesAsync();
 

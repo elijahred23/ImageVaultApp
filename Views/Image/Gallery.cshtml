@@ -3,6 +3,7 @@
     var settings = ViewBag.Settings as UserSettings;
     var allowNSFW = settings?.AllowNSFW ?? false;
     var blurNSFW = settings?.BlurNSFW ?? true;
+    var favoriteImageIds = ViewBag.FavoriteImageIds as List<int> ?? new List<int>();
 }
 
 <div class="container py-5">
@@ -43,12 +44,20 @@
                     continue;
                 }
                 var isBlurred = image.IsNSFW && blurNSFW;
+                var isFavorited = favoriteImageIds.Contains(image.Id);
 
                 <div class="col">
                     <div class="card h-100 shadow-sm">
-                        <a asp-action="Details" asp-route-id="@image.Id">
-                            <img src="@image.ImageUrl" class="card-img-top @(isBlurred ? "nsfw-blur-effect" : "")" alt="@image.Title" style="object-fit: cover; height: 200px;" />
-                        </a>
+                        <div class="position-relative">
+                            <a asp-action="Details" asp-route-id="@image.Id">
+                                <img src="@image.ImageUrl" class="card-img-top @(isBlurred ? "nsfw-blur-effect" : "") object-fit-cover" alt="@image.Title" />
+                            </a>
+                            <form asp-action="ToggleFavorite" asp-route-id="@image.Id" method="post" class="position-absolute top-0 end-0 m-2">
+                                <button type="submit" class="btn btn-sm @(isFavorited ? "btn-danger" : "btn-outline-secondary") rounded-circle">
+                                    <span class="@(isFavorited ? "text-danger" : "text-muted")">@(isFavorited ? "❤" : "♡")</span>
+                                </button>
+                            </form>
+                        </div>
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">@image.Title</h5>
                             <p class="card-text text-truncate">@image.Description</p>
@@ -62,8 +71,6 @@
                         </div>
                     </div>
                 </div>
-
-
             }
         </div>
     }
