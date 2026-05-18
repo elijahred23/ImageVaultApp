@@ -25,7 +25,7 @@ $(function() {
                         $btn.removeClass("btn-danger").addClass("btn-outline-danger");
                     }
 
-                    $btn.find('.favorite-icon').toggleClass('fas').toggleClass('far');
+                    $btn.find('.favorite-icon').text(response.isFavorited ? "❤️" : "🤍");
                 }
             },
             error: function() {
