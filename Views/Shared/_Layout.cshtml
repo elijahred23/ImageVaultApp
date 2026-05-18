@@ -55,6 +55,25 @@
             &copy; 2026 - ImageVaultApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
     </footer>
+    <!-- Lightbox Modal -->
+    <div class="modal fade" id="lightboxModal" tabindex="-1" aria-labelledby="lightboxModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content bg-dark border-0">
+                <div class="modal-header border-0 pb-0">
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0 text-center position-relative">
+                    <img id="lightboxImage" src="#" alt="Lightbox Image" class="img-fluid rounded" style="max-height: 80vh;" />
+                    <div id="lightboxCaption" class="py-3 text-white bg-black bg-opacity-50 mt-2"></div>
+                    
+                    <div class="pb-4">
+                        <button id="prevImage" class="btn btn-outline-light me-2">&larr; Previous</button>
+                        <button id="nextImage" class="btn btn-outline-light">Next &rarr;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

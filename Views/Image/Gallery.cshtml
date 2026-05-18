@@ -50,9 +50,7 @@
                 <div class="col">
                     <div class="card h-100 shadow-sm">
                         <div class="position-relative">
-                            <a asp-action="Details" asp-route-id="@image.Id">
-                                <img src="@image.ImageUrl" class="card-img-top @(isBlurred ? "nsfw-blur-effect" : "") object-fit-cover" alt="@image.Title" />
-                            </a>
+                            <img src="@image.ImageUrl" data-title="@image.Title" class="gallery-img card-img-top @(isBlurred ? "nsfw-blur-effect" : "") object-fit-cover" alt="@image.Title" />
                             <button class="btn btn-sm favorite-toggle @(isFavorited ? "btn-danger" : "btn-outline-danger") position-absolute top-0 end-0 m-2 rounded-circle" 
                                 data-image-id="@image.Id">
                                 <span class="favorite-icon">@(isFavorited ? "❤️" : "🤍")</span>

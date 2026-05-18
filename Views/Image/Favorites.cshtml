@@ -33,9 +33,7 @@
 
                 <div class="col">
                     <div class="card h-100 shadow-sm">
-                        <a asp-action="Details" asp-route-id="@image.Id">
-                            <img src="@image.ImageUrl" class="card-img-top @(isBlurred ? "nsfw-blur-effect" : "") object-fit-cover" alt="@image.Title" />
-                        </a>
+                        <img src="@image.ImageUrl" data-title="@image.Title" class="gallery-img card-img-top @(isBlurred ? "nsfw-blur-effect" : "") object-fit-cover" alt="@image.Title" style="cursor: pointer;" />
                     </div>
                 </div>
             }
