@@ -1,6 +1,3 @@
-using System;
-using Microsoft.Identity.Client;
-
 public class Favorite
 {
     public int Id {get;set;}

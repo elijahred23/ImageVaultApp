@@ -2,7 +2,6 @@ using ImageVaultApp.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query.Internal;
 using System.Security.Claims;
 
 [Authorize]

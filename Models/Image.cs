@@ -1,5 +1,3 @@
-using Microsoft.Identity.Client;
-using Microsoft.Net.Http.Headers;
 using System.ComponentModel.DataAnnotations.Schema;
 
 public class Image
