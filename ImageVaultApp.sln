@@ -1,22 +1,54 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageVaultApp", "ImageVaultApp.csproj", "{B446965D-5592-2948-F006-E6D267C968A9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageVault.ImportService", "src\ImageVault.ImportService\ImageVault.ImportService.csproj", "{76472D57-D6C8-4314-8158-51648FEAB9D1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{B446965D-5592-2948-F006-E6D267C968A9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B446965D-5592-2948-F006-E6D267C968A9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B446965D-5592-2948-F006-E6D267C968A9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B446965D-5592-2948-F006-E6D267C968A9}.Debug|x64.Build.0 = Debug|Any CPU
+		{B446965D-5592-2948-F006-E6D267C968A9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B446965D-5592-2948-F006-E6D267C968A9}.Debug|x86.Build.0 = Debug|Any CPU
 		{B446965D-5592-2948-F006-E6D267C968A9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B446965D-5592-2948-F006-E6D267C968A9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B446965D-5592-2948-F006-E6D267C968A9}.Release|x64.ActiveCfg = Release|Any CPU
+		{B446965D-5592-2948-F006-E6D267C968A9}.Release|x64.Build.0 = Release|Any CPU
+		{B446965D-5592-2948-F006-E6D267C968A9}.Release|x86.ActiveCfg = Release|Any CPU
+		{B446965D-5592-2948-F006-E6D267C968A9}.Release|x86.Build.0 = Release|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Debug|x64.Build.0 = Debug|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Debug|x86.Build.0 = Debug|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Release|x64.ActiveCfg = Release|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Release|x64.Build.0 = Release|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Release|x86.ActiveCfg = Release|Any CPU
+		{76472D57-D6C8-4314-8158-51648FEAB9D1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{76472D57-D6C8-4314-8158-51648FEAB9D1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6575430E-1F34-429C-A6FC-6E8D532FFE60}

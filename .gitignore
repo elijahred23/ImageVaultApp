@@ -18,6 +18,8 @@ out/
 # Logs
 *.log
 logs/
+!src/ImageVault.ImportService/DropFolders/logs/
+!src/ImageVault.ImportService/DropFolders/logs/.gitkeep
 
 # Test and coverage outputs
 TestResults/
