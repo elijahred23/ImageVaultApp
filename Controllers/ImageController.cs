@@ -70,7 +70,19 @@ public class ImageController: Controller
 
         if(!string.IsNullOrWhiteSpace(searchTerm))
         {
-            query = query.Where(i => (i.Title != null && i.Title.Contains(searchTerm)) || (i.Description != null && i.Description.Contains(searchTerm)));
+            var trimmedSearchTerm = searchTerm.Trim();
+
+            if (trimmedSearchTerm.Equals("nsfw", StringComparison.OrdinalIgnoreCase))
+            {
+                query = settings?.AllowNSFW == true
+                    ? query.Where(i => i.IsNSFW)
+                    : query.Where(i => false);
+            }
+            else
+            {
+                query = query.Where(i => (i.Title != null && i.Title.Contains(searchTerm)) || (i.Description != null && i.Description.Contains(searchTerm)));
+            }
+
             ViewBag.SearchTerm = searchTerm;
         }
 

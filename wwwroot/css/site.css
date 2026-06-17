@@ -21,6 +21,36 @@ body {
   margin-bottom: 60px;
 }
 
+.lightbox-stage {
+  height: min(72vh, 760px);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  user-select: none;
+  touch-action: none;
+}
+
+.lightbox-image {
+  max-width: none;
+  max-height: none;
+  width: var(--lightbox-image-width, auto);
+  height: var(--lightbox-image-height, auto);
+  object-fit: contain;
+  transform: translate(var(--lightbox-pan-x, 0), var(--lightbox-pan-y, 0));
+  transition: width 0.15s ease, height 0.15s ease, transform 0.15s ease;
+}
+
+.lightbox-zoom-slider {
+  width: min(220px, 45vw);
+}
+
+.lightbox-zoom-label {
+  min-width: 3rem;
+  text-align: left;
+}
+
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
   color: var(--bs-secondary-color);
   text-align: end;

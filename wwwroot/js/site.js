@@ -3,6 +3,105 @@ $(function(){
     let currentImageIndex = 0;
 
     let $galleryItems = [];
+    let lightboxZoom = 1;
+    let lightboxFitSize = { width: 0, height: 0 };
+    let lightboxPan = { x: 0, y: 0 };
+
+    function clampZoom(value) {
+        return Math.min(4, Math.max(0.25, value));
+    }
+
+    function calculateLightboxFitSize() {
+        const image = document.getElementById('lightboxImage');
+        const stage = document.getElementById('lightboxStage');
+
+        if(!image || !stage || !image.naturalWidth || !image.naturalHeight) return;
+
+        const stageWidth = Math.max(stage.clientWidth - 32, 1);
+        const stageHeight = Math.max(stage.clientHeight - 32, 1);
+        const fitRatio = Math.min(stageWidth / image.naturalWidth, stageHeight / image.naturalHeight, 1);
+
+        lightboxFitSize = {
+            width: Math.round(image.naturalWidth * fitRatio),
+            height: Math.round(image.naturalHeight * fitRatio)
+        };
+
+        applyLightboxZoom();
+    }
+
+    function applyLightboxZoom() {
+        const image = document.getElementById('lightboxImage');
+
+        if(!image || !lightboxFitSize.width || !lightboxFitSize.height) return;
+
+        const imageWidth = Math.round(lightboxFitSize.width * lightboxZoom);
+        const imageHeight = Math.round(lightboxFitSize.height * lightboxZoom);
+
+        image.style.setProperty('--lightbox-image-width', `${imageWidth}px`);
+        image.style.setProperty('--lightbox-image-height', `${imageHeight}px`);
+
+        $('#lightboxZoomSlider').val(Math.round(lightboxZoom * 100));
+        $('#lightboxZoomLabel').text(`${Math.round(lightboxZoom * 100)}%`);
+        clampLightboxPan();
+        applyLightboxPan();
+    }
+
+    function setLightboxZoom(value) {
+        lightboxZoom = clampZoom(value);
+        applyLightboxZoom();
+    }
+
+    function getLightboxPanBounds() {
+        const stage = document.getElementById('lightboxStage');
+
+        if(!stage || !lightboxFitSize.width || !lightboxFitSize.height) {
+            return { x: 0, y: 0 };
+        }
+
+        const imageWidth = lightboxFitSize.width * lightboxZoom;
+        const imageHeight = lightboxFitSize.height * lightboxZoom;
+        const stageWidth = Math.max(stage.clientWidth - 32, 1);
+        const stageHeight = Math.max(stage.clientHeight - 32, 1);
+
+        return {
+            x: Math.max((imageWidth - stageWidth) / 2, 0),
+            y: Math.max((imageHeight - stageHeight) / 2, 0)
+        };
+    }
+
+    function clampLightboxPan() {
+        const bounds = getLightboxPanBounds();
+
+        lightboxPan = {
+            x: Math.min(bounds.x, Math.max(-bounds.x, lightboxPan.x)),
+            y: Math.min(bounds.y, Math.max(-bounds.y, lightboxPan.y))
+        };
+    }
+
+    function applyLightboxPan() {
+        const image = document.getElementById('lightboxImage');
+
+        if(!image) return;
+
+        image.style.setProperty('--lightbox-pan-x', `${Math.round(lightboxPan.x)}px`);
+        image.style.setProperty('--lightbox-pan-y', `${Math.round(lightboxPan.y)}px`);
+    }
+
+    function moveLightboxPan(deltaX, deltaY) {
+        lightboxPan = {
+            x: lightboxPan.x + deltaX,
+            y: lightboxPan.y + deltaY
+        };
+
+        clampLightboxPan();
+        applyLightboxPan();
+    }
+
+    function resetLightboxView() {
+        lightboxPan = { x: 0, y: 0 };
+        setLightboxZoom(1);
+        applyLightboxPan();
+    }
 
     function updateLightbox(index) 
     {
@@ -15,6 +114,7 @@ $(function(){
 
         $('#lightboxImage').attr('src', $item.attr('src'));
         $('#lightboxCaption').text($item.data('title') || 'No Title');
+        resetLightboxView();
     }
 
 
@@ -38,11 +138,81 @@ $(function(){
         updateLightbox((currentImageIndex + 1) % $galleryItems.length);
     });
 
+    $('#zoomOutImage').on('click', function(){
+        setLightboxZoom(lightboxZoom - 0.25);
+    });
+
+    $('#zoomInImage').on('click', function(){
+        setLightboxZoom(lightboxZoom + 0.25);
+    });
+
+    $('#resetImageZoom').on('click', function(){
+        resetLightboxView();
+    });
+
+    $('#lightboxZoomSlider').on('input', function(){
+        setLightboxZoom(Number(this.value) / 100);
+    });
+
+    $('#lightboxImage').on('load', function() {
+        calculateLightboxFitSize();
+    });
+
+    $('#lightboxStage').on('wheel', function(e) {
+        if(!$('#lightboxModal').hasClass('show')) return;
+
+        e.preventDefault();
+        setLightboxZoom(lightboxZoom + (e.originalEvent.deltaY < 0 ? 0.25 : -0.25));
+    });
+
+    $('#panImageLeft').on('click', function() {
+        moveLightboxPan(80, 0);
+    });
+
+    $('#panImageRight').on('click', function() {
+        moveLightboxPan(-80, 0);
+    });
+
+    $('#panImageUp').on('click', function() {
+        moveLightboxPan(0, 80);
+    });
+
+    $('#panImageDown').on('click', function() {
+        moveLightboxPan(0, -80);
+    });
+
+    $('#lightboxModal').on('shown.bs.modal', function() {
+        calculateLightboxFitSize();
+    });
+
+    $(window).on('resize', function() {
+        if($('#lightboxModal').hasClass('show')) {
+            calculateLightboxFitSize();
+        }
+    });
+
     $(document).on('keydown', function(e) {
         if(!$('#lightboxModal').hasClass('show')) return;
 
-        if(e.key == 'ArrowLeft') $('#prevImage').trigger('click');
-        else if (e.key == 'ArrowRight') $('#nextImage').trigger('click');
+        if(e.key == 'ArrowLeft') {
+            if(lightboxZoom > 1) moveLightboxPan(80, 0);
+            else $('#prevImage').trigger('click');
+        }
+        else if (e.key == 'ArrowRight') {
+            if(lightboxZoom > 1) moveLightboxPan(-80, 0);
+            else $('#nextImage').trigger('click');
+        }
+        else if (e.key == 'ArrowUp' && lightboxZoom > 1) {
+            e.preventDefault();
+            moveLightboxPan(0, 80);
+        }
+        else if (e.key == 'ArrowDown' && lightboxZoom > 1) {
+            e.preventDefault();
+            moveLightboxPan(0, -80);
+        }
+        else if (e.key == '+' || e.key == '=') $('#zoomInImage').trigger('click');
+        else if (e.key == '-' || e.key == '_') $('#zoomOutImage').trigger('click');
+        else if (e.key == '0') $('#resetImageZoom').trigger('click');
     })
 
     $('body').on('click', '.favorite-toggle', function(e) {

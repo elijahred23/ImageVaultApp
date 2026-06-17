@@ -63,9 +63,22 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-0 text-center position-relative">
-                    <img id="lightboxImage" src="#" alt="Lightbox Image" class="img-fluid rounded" style="max-height: 80vh;" />
+                    <div id="lightboxStage" class="lightbox-stage">
+                        <img id="lightboxImage" src="#" alt="Lightbox Image" class="rounded lightbox-image" />
+                    </div>
                     <div id="lightboxCaption" class="py-3 text-white bg-black bg-opacity-50 mt-2"></div>
                     
+                    <div class="pb-3 d-flex flex-wrap justify-content-center align-items-center gap-2 px-3">
+                        <button id="zoomOutImage" class="btn btn-outline-light" type="button">Smaller</button>
+                        <input id="lightboxZoomSlider" class="form-range lightbox-zoom-slider" type="range" min="25" max="400" step="25" value="100" aria-label="Image zoom" />
+                        <button id="zoomInImage" class="btn btn-outline-light" type="button">Bigger</button>
+                        <button id="panImageLeft" class="btn btn-outline-light" type="button">Left</button>
+                        <button id="panImageUp" class="btn btn-outline-light" type="button">Up</button>
+                        <button id="panImageDown" class="btn btn-outline-light" type="button">Down</button>
+                        <button id="panImageRight" class="btn btn-outline-light" type="button">Right</button>
+                        <button id="resetImageZoom" class="btn btn-outline-light" type="button">Reset</button>
+                        <span id="lightboxZoomLabel" class="text-white-50 small lightbox-zoom-label">100%</span>
+                    </div>
                     <div class="pb-4">
                         <button id="prevImage" class="btn btn-outline-light me-2">&larr; Previous</button>
                         <button id="nextImage" class="btn btn-outline-light">Next &rarr;</button>
