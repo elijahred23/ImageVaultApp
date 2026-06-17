@@ -154,19 +154,36 @@ public class ImageController: Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
         var image = await _vaultContext.Images.FindAsync(id);
 
-        if(image == null) return NotFound();
+        var isAjaxRequest = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
+        if(image == null)
+        {
+            if(isAjaxRequest) return NotFound(new { success = false, message = "Image not found." });
+
+            return NotFound();
+        }
 
         if(image.UserId != int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value))
+        {
+            if(isAjaxRequest) return Forbid();
+
             return Forbid();
+        }
 
 
         _vaultContext.Images.Remove(image);
 
         await _vaultContext.SaveChangesAsync();
+
+        if(isAjaxRequest)
+        {
+            return Json(new { success = true, deletedImageId = id });
+        }
 
         return RedirectToAction("Gallery");
     }

@@ -45,7 +45,9 @@ $(function(){
         else if (e.key == 'ArrowRight') $('#nextImage').trigger('click');
     })
 
-    $('.favorite-toggle').on('click', function(e) {
+    $('body').on('click', '.favorite-toggle', function(e) {
+        e.preventDefault();
+
         const $btn = $(this);
 
         const imageId = $btn.data('image-id');
@@ -79,4 +81,54 @@ $(function(){
         })
 
     })
+
+    $('body').on('submit', '.delete-image-form', function(e) {
+        e.preventDefault();
+
+        const $form = $(this);
+        const $button = $form.find('button[type="submit"]');
+        const $galleryItem = $form.closest('.gallery-item');
+        const token = $form.find('input[name="__RequestVerificationToken"]').val()
+            || $('input[name="__RequestVerificationToken"]').val();
+
+        $button.prop('disabled', true).text('Deleting...');
+
+        $.ajax({
+            url: $form.attr('action'),
+            type: 'POST',
+            data: $form.serialize(),
+            headers: {
+                'RequestVerificationToken': token,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if(!response.success) {
+                    $button.prop('disabled', false).text('Delete');
+                    alert(response.message || 'Unable to delete image. Please try again.');
+                    return;
+                }
+
+                $galleryItem.fadeOut(150, function() {
+                    $(this).remove();
+
+                    const $count = $('#galleryImageCount');
+                    const remainingCount = $('.gallery-item').length;
+
+                    $count.text(remainingCount);
+
+                    if(remainingCount === 0) {
+                        $('#galleryGrid').replaceWith(
+                            '<div id="emptyGalleryMessage" class="text-center py-5 border-rounded-4 bg-light shadow-sm">' +
+                                '<p class="text-muted mb-0">No images found in your vault.</p>' +
+                            '</div>'
+                        );
+                    }
+                });
+            },
+            error: function() {
+                $button.prop('disabled', false).text('Delete');
+                alert('An error occurred while deleting the image. Please try again.');
+            }
+        });
+    });
 })

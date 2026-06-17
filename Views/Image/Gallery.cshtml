@@ -5,13 +5,14 @@
     var allowNSFW = settings?.AllowNSFW ?? false;
     var blurNSFW = settings?.BlurNSFW ?? true;
     var favoriteImageIds = ViewBag.FavoriteImageIds as List<int> ?? new List<int>();
+    var displayImages = Model.Where(image => allowNSFW || !image.IsNSFW).ToList();
 }
 
 <div class="container py-5">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-3 border-bottom pb-4">
         <div>
             <h1 class="fw-bold mb-0 text-primary">Secure Vault</h1>
-            <p class="text-muted">Browsing @Model.Count() images in your collection</p>
+            <p class="text-muted">Browsing <span id="galleryImageCount">@displayImages.Count</span> images in your collection</p>
         </div>
         <div class="d-flex flex-column flex-sm-row gap-2">
 
@@ -30,24 +31,20 @@
         </div>
     </div>
 
-    @if(!Model.Any())
+    @if(!displayImages.Any())
     {
-        <div class="text-center py-5 border-rounded-4 bg-light shadow-sm">
+        <div id="emptyGalleryMessage" class="text-center py-5 border-rounded-4 bg-light shadow-sm">
             <p class="text-muted mb-0">No images found in your vault.</p>
         </div>
     }
     else {
-        <div class="row rows-cols-1 rows-cols-sm-2 row-cols-3 row-cols-md-3 row-cols-lg-4 g-4">
-            @foreach(var image in Model)
+        <div id="galleryGrid" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            @foreach(var image in displayImages)
             {
-                if(image.IsNSFW && !allowNSFW)
-                {
-                    continue;
-                }
                 var isBlurred = image.IsNSFW && blurNSFW;
                 var isFavorited = favoriteImageIds.Contains(image.Id);
 
-                <div class="col">
+                <div class="col gallery-item" data-image-id="@image.Id">
                     <div class="card h-100 shadow-sm">
                         <div class="position-relative">
                             <img src="@image.ImageUrl" data-title="@image.Title" class="gallery-img card-img-top @(isBlurred ? "nsfw-blur-effect" : "") object-fit-cover" alt="@image.Title" />
@@ -62,7 +59,7 @@
                             <p class="card-text mt-auto"><small class="text-muted">Uploaded on @image.CreatedAt.ToString("MMM dd, yyyy")</small></p>
                             <div class="btn-group">
                                 <a asp-action="Edit" asp-route-id="@image.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                <form asp-action="Delete" asp-route-id="@image.Id" method="post" class="d-inline">
+                                <form asp-action="Delete" asp-route-id="@image.Id" method="post" class="d-inline delete-image-form">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                                 </form>
                             </div>

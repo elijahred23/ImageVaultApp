@@ -21,6 +21,9 @@ logs/
 !src/ImageVault.ImportService/DropFolders/logs/
 !src/ImageVault.ImportService/DropFolders/logs/.gitkeep
 
+# Import drop folder payloads
+src/ImageVault.ImportService/DropFolders/**/*.json
+
 # Test and coverage outputs
 TestResults/
 *.trx
