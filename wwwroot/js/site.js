@@ -82,6 +82,132 @@ $(function(){
 
     })
 
+    $('body').on('click', '.edit-image-button', function() {
+        const imageId = $(this).data('image-id');
+        const $item = $(`.gallery-item[data-image-id="${imageId}"]`);
+        const imageUrl = $item.find('.gallery-img').attr('src');
+
+        $('#editImageForm')[0].reset();
+        $('#editImageError').addClass('d-none').text('');
+        $('#editImageId').val(imageId);
+        $('#editImageTitle').val($item.data('title') || '');
+        $('#editImageDescription').val($item.data('description') || '');
+        $('#editImageIsNSFW').prop('checked', $item.data('is-nsfw') === true || $item.data('is-nsfw') === 'true');
+        $('#editCurrentImage').attr('src', imageUrl);
+        $('#editNewImagePreview').attr('src', '#').addClass('d-none');
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('editImageModal'));
+        modal.show();
+    });
+
+    $('#editImageFile').on('change', function() {
+        const file = this.files[0];
+        const $preview = $('#editNewImagePreview');
+
+        if(!file) {
+            $preview.attr('src', '#').addClass('d-none');
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            $preview.attr('src', e.target.result).removeClass('d-none');
+        };
+
+        reader.readAsDataURL(file);
+    });
+
+    $('#editImageForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const form = this;
+        const $form = $(form);
+        const $submit = $('#editImageSubmit');
+        const $error = $('#editImageError');
+        const token = $form.find('input[name="__RequestVerificationToken"]').val();
+        const formData = new FormData(form);
+
+        $submit.prop('disabled', true).text('Saving...');
+        $error.addClass('d-none').text('');
+
+        $.ajax({
+            url: $form.attr('action'),
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'RequestVerificationToken': token,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if(!response.success) {
+                    $error.text(response.message || 'Unable to save changes. Please try again.').removeClass('d-none');
+                    return;
+                }
+
+                const image = response.image;
+                const isNSFW = image.isNSFW === true || image.isNsfw === true;
+                const $item = $(`.gallery-item[data-image-id="${image.id}"]`);
+                const allowNSFW = $('#galleryGrid').data('allow-nsfw') === true || $('#galleryGrid').data('allow-nsfw') === 'true';
+                const blurNSFW = $('#galleryGrid').data('blur-nsfw') === true || $('#galleryGrid').data('blur-nsfw') === 'true';
+
+                $item
+                    .data('title', image.title || '')
+                    .data('description', image.description || '')
+                    .data('is-nsfw', isNSFW);
+
+                $item.attr({
+                    'data-title': image.title || '',
+                    'data-description': image.description || '',
+                    'data-is-nsfw': isNSFW.toString()
+                });
+
+                const $galleryImage = $item.find('.gallery-img');
+
+                $galleryImage
+                    .attr('src', image.imageUrl || '')
+                    .attr('alt', image.title || '')
+                    .attr('data-title', image.title || '')
+                    .data('title', image.title || '')
+                    .toggleClass('nsfw-blur-effect', isNSFW && blurNSFW);
+
+                $item.find('.card-title').text(image.title || '');
+                $item.find('.card-text.text-truncate').text(image.description || '');
+
+                bootstrap.Modal.getInstance(document.getElementById('editImageModal')).hide();
+
+                if(isNSFW && !allowNSFW) {
+                    $item.fadeOut(150, function() {
+                        $(this).remove();
+
+                        const remainingCount = $('.gallery-item').length;
+                        $('#galleryImageCount').text(remainingCount);
+
+                        if(remainingCount === 0) {
+                            $('#galleryGrid').replaceWith(
+                                '<div id="emptyGalleryMessage" class="text-center py-5 border-rounded-4 bg-light shadow-sm">' +
+                                    '<p class="text-muted mb-0">No images found in your vault.</p>' +
+                                '</div>'
+                            );
+                        }
+                    });
+                }
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'An error occurred while saving changes. Please try again.';
+
+                $error.text(message).removeClass('d-none');
+            },
+            complete: function() {
+                $submit.prop('disabled', false).text('Save Changes');
+            }
+        });
+    });
+
     $('body').on('submit', '.delete-image-form', function(e) {
         e.preventDefault();
 

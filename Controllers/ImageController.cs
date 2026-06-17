@@ -33,15 +33,7 @@ public class ImageController: Controller
         }
         else if (model.File != null && model.File.Length > 0)
         {
-            using var ms = new MemoryStream();
-
-            await model.File.CopyToAsync(ms);
-
-            var bytes = ms.ToArray();
-
-            var base64 = Convert.ToBase64String(bytes);
-
-            finalImageUrl = $"data:{model.File.ContentType};base64,{base64}";
+            finalImageUrl = await ConvertFileToDataUrlAsync(model.File);
         } else
         {
             ModelState.AddModelError("", "Please select a file.");
@@ -108,6 +100,8 @@ public class ImageController: Controller
 
         if(image == null) return NotFound();
 
+        if(image.UserId != int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value))
+            return Forbid();
 
         var model = new ImageEditViewModel
         {
@@ -121,18 +115,41 @@ public class ImageController: Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(ImageEditViewModel model)
     {
+        var isAjaxRequest = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
         if(!ModelState.IsValid)
+        {
+            if(isAjaxRequest)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Please correct the validation errors and try again."
+                });
+            }
+
             return View(model);
+        }
 
         var image = await _vaultContext.Images.FindAsync(model.Id);
 
 
-        if(image == null) return NotFound();
+        if(image == null)
+        {
+            if(isAjaxRequest) return NotFound(new { success = false, message = "Image not found." });
+
+            return NotFound();
+        }
 
         if(image.UserId != int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value))
+        {
+            if(isAjaxRequest) return Forbid();
+
             return Forbid();    
+        }
 
         image.Title = model.Title;
 
@@ -140,7 +157,30 @@ public class ImageController: Controller
 
         image.IsNSFW = model.IsNSFW;
 
+        if(model.NewFile != null && model.NewFile.Length > 0)
+        {
+            image.ImageUrl = await ConvertFileToDataUrlAsync(model.NewFile);
+            image.MimeType = model.NewFile.ContentType;
+            image.FileSizeBytes = model.NewFile.Length;
+        }
+
         await _vaultContext.SaveChangesAsync();
+
+        if(isAjaxRequest)
+        {
+            return Json(new
+            {
+                success = true,
+                image = new
+                {
+                    id = image.Id,
+                    title = image.Title,
+                    description = image.Description,
+                    isNSFW = image.IsNSFW,
+                    imageUrl = image.ImageUrl
+                }
+            });
+        }
 
         var referer = Request.Headers["Referer"].ToString();
 
@@ -255,5 +295,18 @@ public class ImageController: Controller
         ViewBag.FavoriteImageIds = favoriteImageIds;
 
         return View(images);
+    }
+
+    private static async Task<string> ConvertFileToDataUrlAsync(IFormFile file)
+    {
+        using var ms = new MemoryStream();
+
+        await file.CopyToAsync(ms);
+
+        var bytes = ms.ToArray();
+
+        var base64 = Convert.ToBase64String(bytes);
+
+        return $"data:{file.ContentType};base64,{base64}";
     }
 }
