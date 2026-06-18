@@ -52,3 +52,5 @@ secrets.json
 
 # ASP.NET local settings overrides (optional)
 appsettings.Local.json
+
+/SqlScripts
