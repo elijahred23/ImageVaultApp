@@ -59,14 +59,26 @@ public class ImageController: Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Gallery(string searchTerm)
+    public async Task<IActionResult> Gallery(string searchTerm, int page = 1, int pageSize = 100)
     {
+        const int defaultPageSize = 100;
+        const int maxPageSize = 1000;
+
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = defaultPageSize;
+        if (pageSize > maxPageSize) pageSize = maxPageSize;
+        pageSize = Math.Clamp(((pageSize + 99) / 100) * 100, defaultPageSize, maxPageSize);
+
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
         var settings = await _vaultContext.UserSettings
             .FirstOrDefaultAsync(s => s.UserId == userId);
 
         var query = _vaultContext.Images.Where(i => i.UserId == userId);
 
+        if(settings?.AllowNSFW != true)
+        {
+            query = query.Where(i => !i.IsNSFW);
+        }
 
         if(!string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -86,9 +98,15 @@ public class ImageController: Controller
             ViewBag.SearchTerm = searchTerm;
         }
 
+        var totalImages = await query.CountAsync();
+        var totalPages = totalImages == 0 ? 1 : (int)Math.Ceiling(totalImages / (double)pageSize);
+
+        if (page > totalPages) page = totalPages;
 
         var images = await query
             .OrderByDescending(i => i.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
         
         var favoriteImageIds = await _vaultContext.Favorites
@@ -104,7 +122,14 @@ public class ImageController: Controller
         ViewBag.Settings = settings;
         ViewBag.FavoriteImageIds = favoriteImageIds;
 
-        return View(images);
+        return View(new GalleryViewModel
+        {
+            Images = images,
+            SearchTerm = searchTerm,
+            Page = page,
+            PageSize = pageSize,
+            TotalImages = totalImages
+        });
     }
     public async Task<IActionResult> Edit(int id)
     {

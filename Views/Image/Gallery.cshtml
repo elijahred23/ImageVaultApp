@@ -1,31 +1,58 @@
-@model IEnumerable<Image>
+@model GalleryViewModel
 @Html.AntiForgeryToken()
 @{
     var settings = ViewBag.Settings as UserSettings;
     var allowNSFW = settings?.AllowNSFW ?? false;
     var blurNSFW = settings?.BlurNSFW ?? true;
     var favoriteImageIds = ViewBag.FavoriteImageIds as List<int> ?? new List<int>();
-    var displayImages = Model.Where(image => allowNSFW || !image.IsNSFW).ToList();
+    var displayImages = Model.Images.ToList();
+    var startPage = Math.Max(1, Model.Page - 2);
+    var endPage = Math.Min(Model.TotalPages, Model.Page + 2);
 }
 
 <div class="container py-5">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 gap-3 border-bottom pb-4">
         <div>
             <h1 class="fw-bold mb-0 text-primary">Secure Vault</h1>
-            <p class="text-muted">Browsing <span id="galleryImageCount">@displayImages.Count</span> images in your collection</p>
+            <p class="text-muted">
+                Browsing
+                <span id="galleryImageCount">@displayImages.Count</span>
+                of @Model.TotalImages images in your collection
+            </p>
         </div>
-        <div class="d-flex flex-column flex-sm-row gap-2">
+        <div class="d-flex flex-column flex-sm-row gap-2 align-items-sm-start">
 
         <form asp-action="Gallery" method ="get" class="mb-4">
             <div class="input-group">
                 <input autocomplete="off" type="text" name="searchTerm" class="form-control" placeholder = "Search Images by title or description" 
-                    value ="@ViewBag.SearchTerm" />
+                    value ="@Model.SearchTerm" />
+                <input type="hidden" name="pageSize" value="@Model.PageSize" />
 
                 <button class ="btn btn-primary" type="submit">Search</button>
-                @if(!string.IsNullOrEmpty(ViewBag.SearchTerm))
+                @if(!string.IsNullOrEmpty(Model.SearchTerm))
                 {
                     <a class="btn btn-secondary" href="@Url.Action("Gallery")">Clear</a>
                 }
+            </div>
+        </form>
+        <form asp-action="Gallery" method="get" id="galleryPageSizeForm" class="mb-4">
+            <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
+            <input type="hidden" name="page" value="1" />
+            <div class="input-group">
+                <span class="input-group-text">Per page</span>
+                <select id="galleryPageSizeInput" class="form-select" name="pageSize" aria-label="Images per page">
+                    @for(var pageSizeOption = 100; pageSizeOption <= 1000; pageSizeOption += 100)
+                    {
+                        if(pageSizeOption == Model.PageSize)
+                        {
+                            <option value="@pageSizeOption" selected>@pageSizeOption</option>
+                        }
+                        else
+                        {
+                            <option value="@pageSizeOption">@pageSizeOption</option>
+                        }
+                    }
+                </select>
             </div>
         </form>
         </div>
@@ -72,6 +99,51 @@
                 </div>
             }
         </div>
+
+        @if(Model.TotalPages > 1)
+        {
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-4">
+                <div class="text-muted small">
+                    Showing @Model.FirstItemIndex-@Model.LastItemIndex of @Model.TotalImages
+                </div>
+                <nav aria-label="Gallery pages">
+                    <ul class="pagination mb-0 flex-wrap justify-content-center">
+                        <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                            <a class="page-link" href="@Url.Action("Gallery", new { searchTerm = Model.SearchTerm, page = Model.Page - 1, pageSize = Model.PageSize })">Previous</a>
+                        </li>
+                        @if(startPage > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" href="@Url.Action("Gallery", new { searchTerm = Model.SearchTerm, page = 1, pageSize = Model.PageSize })">1</a>
+                            </li>
+                            @if(startPage > 2)
+                            {
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            }
+                        }
+                        @for(var pageNumber = startPage; pageNumber <= endPage; pageNumber++)
+                        {
+                            <li class="page-item @(pageNumber == Model.Page ? "active" : "")">
+                                <a class="page-link" href="@Url.Action("Gallery", new { searchTerm = Model.SearchTerm, page = pageNumber, pageSize = Model.PageSize })">@pageNumber</a>
+                            </li>
+                        }
+                        @if(endPage < Model.TotalPages)
+                        {
+                            @if(endPage < Model.TotalPages - 1)
+                            {
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            }
+                            <li class="page-item">
+                                <a class="page-link" href="@Url.Action("Gallery", new { searchTerm = Model.SearchTerm, page = Model.TotalPages, pageSize = Model.PageSize })">@Model.TotalPages</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                            <a class="page-link" href="@Url.Action("Gallery", new { searchTerm = Model.SearchTerm, page = Model.Page + 1, pageSize = Model.PageSize })">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
     }
 </div>
 

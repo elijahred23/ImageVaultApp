@@ -6,6 +6,50 @@ $(function(){
     let lightboxZoom = 1;
     let lightboxFitSize = { width: 0, height: 0 };
     let lightboxPan = { x: 0, y: 0 };
+    const galleryPageSizeStorageKey = 'imageVault.galleryPageSize';
+
+    function clampGalleryPageSize(value) {
+        const pageSize = Number.parseInt(value, 10);
+
+        if(Number.isNaN(pageSize)) return 100;
+
+        return Math.min(1000, Math.max(100, Math.ceil(pageSize / 100) * 100));
+    }
+
+    function initializeGalleryPageSize() {
+        const pageSizeInput = document.getElementById('galleryPageSizeInput');
+        const pageSizeForm = document.getElementById('galleryPageSizeForm');
+
+        if(!pageSizeInput || !pageSizeForm) return;
+
+        const currentPageSize = clampGalleryPageSize(pageSizeInput.value);
+        const savedPageSize = clampGalleryPageSize(localStorage.getItem(galleryPageSizeStorageKey));
+        const url = new URL(window.location.href);
+        const hasPageSizeQuery = url.searchParams.has('pageSize');
+
+        if(!hasPageSizeQuery && savedPageSize !== currentPageSize) {
+            url.searchParams.set('pageSize', savedPageSize);
+            url.searchParams.set('page', '1');
+            window.location.replace(url.toString());
+            return;
+        }
+
+        pageSizeInput.value = currentPageSize;
+        localStorage.setItem(galleryPageSizeStorageKey, currentPageSize.toString());
+
+        $(pageSizeForm).on('submit', function() {
+            const nextPageSize = clampGalleryPageSize(pageSizeInput.value);
+
+            pageSizeInput.value = nextPageSize;
+            localStorage.setItem(galleryPageSizeStorageKey, nextPageSize.toString());
+        });
+
+        $(pageSizeInput).on('change', function() {
+            pageSizeForm.requestSubmit();
+        });
+    }
+
+    initializeGalleryPageSize();
 
     function clampZoom(value) {
         return Math.min(4, Math.max(0.25, value));
