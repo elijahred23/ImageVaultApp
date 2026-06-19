@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 using ImageVaultApp.Data;
 using ImageVaultApp.ViewModels;
@@ -12,10 +13,17 @@ using ImageVaultApp.ViewModels;
 public class ImageController: Controller
 {
     private readonly ImageVaultDbContext _vaultContext;
+    private readonly IConfiguration _configuration;
+    private readonly IWebHostEnvironment _environment;
 
-    public ImageController(ImageVaultDbContext vaultContext)
+    public ImageController(
+        ImageVaultDbContext vaultContext,
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
     {
         _vaultContext = vaultContext;
+        _configuration = configuration;
+        _environment = environment;
     }
     [HttpGet]
     public IActionResult Upload()
@@ -56,6 +64,68 @@ public class ImageController: Controller
         await _vaultContext.SaveChangesAsync();
 
         return RedirectToAction("Gallery");
+    }
+
+    [HttpGet]
+    public IActionResult Import()
+    {
+        return View(CreateImportUploadViewModel());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Import(ImageImportUploadViewModel model, CancellationToken cancellationToken)
+    {
+        if (model.JsonFiles.Count == 0)
+        {
+            ModelState.AddModelError(nameof(model.JsonFiles), "Select at least one JSON file to import.");
+            return View(CreateImportUploadViewModel(model));
+        }
+
+        var acceptedCount = 0;
+        var dropFolder = GetImportDropFolder(model.IsNSFW);
+        Directory.CreateDirectory(dropFolder);
+
+        foreach (var file in model.JsonFiles.Where(file => file.Length > 0))
+        {
+            if (!Path.GetExtension(file.FileName).Equals(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(nameof(model.JsonFiles), $"{file.FileName} is not a JSON file.");
+                continue;
+            }
+
+            await using var memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream, cancellationToken);
+            memoryStream.Position = 0;
+
+            if (!await ContainsImageSourceArrayAsync(memoryStream, cancellationToken))
+            {
+                ModelState.AddModelError(nameof(model.JsonFiles), $"{file.FileName} must contain a non-empty JSON array of image source strings.");
+                continue;
+            }
+
+            memoryStream.Position = 0;
+            var importPath = GetUniqueImportPath(dropFolder, file.FileName);
+            await using var output = new FileStream(importPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            await memoryStream.CopyToAsync(output, cancellationToken);
+            acceptedCount++;
+        }
+
+        foreach (var file in model.JsonFiles.Where(file => file.Length == 0))
+        {
+            ModelState.AddModelError(nameof(model.JsonFiles), $"{file.FileName} is empty.");
+        }
+
+        model.ImportedFileCount = acceptedCount;
+
+        if (acceptedCount > 0)
+        {
+            model.StatusMessage = acceptedCount == 1
+                ? "Queued 1 JSON file for import."
+                : $"Queued {acceptedCount} JSON files for import.";
+        }
+
+        return View(CreateImportUploadViewModel(model));
     }
 
     [HttpGet]
@@ -345,5 +415,85 @@ public class ImageController: Controller
         var base64 = Convert.ToBase64String(bytes);
 
         return $"data:{file.ContentType};base64,{base64}";
+    }
+
+    private ImageImportUploadViewModel CreateImportUploadViewModel(ImageImportUploadViewModel? model = null)
+    {
+        model ??= new ImageImportUploadViewModel();
+        model.DropFolderPath = GetImportDropFolder(model.IsNSFW);
+        return model;
+    }
+
+    private string GetImportDropFolder(bool isNsfw)
+    {
+        var dropRoot = _configuration["ImageImporter:DropRoot"];
+
+        if (string.IsNullOrWhiteSpace(dropRoot))
+        {
+            dropRoot = Path.Combine(_environment.ContentRootPath, "src", "ImageVault.ImportService", "DropFolders");
+        }
+        else if (!Path.IsPathRooted(dropRoot))
+        {
+            dropRoot = Path.GetFullPath(Path.Combine(_environment.ContentRootPath, dropRoot));
+        }
+
+        var folderName = isNsfw
+            ? _configuration["ImageImporter:ProcessNsfwFolder"] ?? "process-nsfw"
+            : _configuration["ImageImporter:ProcessFolder"] ?? "process";
+
+        return Path.Combine(dropRoot, folderName);
+    }
+
+    private static async Task<bool> ContainsImageSourceArrayAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+            if (json.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            var hasImageSource = false;
+
+            foreach (var element in json.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.String)
+                {
+                    return false;
+                }
+
+                if (!string.IsNullOrWhiteSpace(element.GetString()))
+                {
+                    hasImageSource = true;
+                }
+            }
+
+            return hasImageSource;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string GetUniqueImportPath(string directory, string originalFileName)
+    {
+        var baseName = SanitizeFileName(Path.GetFileNameWithoutExtension(originalFileName));
+
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            baseName = "image-import";
+        }
+
+        var fileName = $"{baseName}-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.json";
+        return Path.Combine(directory, fileName);
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        return string.Concat(fileName.Select(character => invalidChars.Contains(character) ? '-' : character));
     }
 }

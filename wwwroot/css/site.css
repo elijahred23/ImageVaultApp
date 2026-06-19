@@ -51,6 +51,42 @@ body {
   text-align: left;
 }
 
+.import-form {
+  max-width: 760px;
+}
+
+.import-drop-zone {
+  border: 2px dashed #6c757d;
+  border-radius: 8px;
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.import-drop-zone:focus,
+.import-drop-zone.is-dragging {
+  border-color: #0d6efd;
+  background: #eef5ff;
+  outline: none;
+}
+
+.import-drop-zone__content {
+  text-align: center;
+}
+
+.import-drop-zone__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.import-file-list {
+  max-width: 760px;
+}
+
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
   color: var(--bs-secondary-color);
   text-align: end;

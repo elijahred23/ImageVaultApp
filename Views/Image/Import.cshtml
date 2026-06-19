@@ -1,0 +1,176 @@
+@model ImageVaultApp.ViewModels.ImageImportUploadViewModel
+
+@{
+    ViewData["Title"] = "Import JSON";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Import JSON</h1>
+        <p class="text-muted mb-0">Queue JSON image source arrays for the ImageVault import service.</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-controller="Image" asp-action="Gallery">Back to Gallery</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success" role="alert">@Model.StatusMessage</div>
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger" role="alert" asp-validation-summary="All"></div>
+}
+
+<form asp-action="Import" method="post" enctype="multipart/form-data" id="jsonImportForm" class="import-form">
+    @Html.AntiForgeryToken()
+
+    <div class="form-check form-switch mb-3">
+        <input class="form-check-input" asp-for="IsNSFW" type="checkbox" />
+        <label class="form-check-label" asp-for="IsNSFW">Import as NSFW</label>
+    </div>
+
+    <div id="jsonDropZone" class="import-drop-zone mb-3" tabindex="0">
+        <div class="import-drop-zone__content">
+            <div class="import-drop-zone__title">Drop JSON files here</div>
+            <div class="text-muted">or choose files from a folder</div>
+        </div>
+        <input asp-for="JsonFiles" id="jsonFileInput" class="visually-hidden" type="file" accept=".json,application/json" multiple />
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-outline-primary" type="button" id="chooseJsonFiles">Choose JSON Files</button>
+        <label class="btn btn-outline-secondary mb-0" for="jsonFolderInput">Choose Folder</label>
+        <input id="jsonFolderInput" class="visually-hidden" type="file" accept=".json,application/json" multiple webkitdirectory directory />
+        <button class="btn btn-primary" type="submit">Queue Import</button>
+    </div>
+
+    <div class="small text-muted mb-3">
+        Files are copied to <code>@Model.DropFolderPath</code> for the background import service to process.
+    </div>
+
+    <ul id="selectedJsonFiles" class="list-group import-file-list"></ul>
+</form>
+
+@section Scripts {
+    <script>
+        const dropZone = document.getElementById('jsonDropZone');
+        const fileInput = document.getElementById('jsonFileInput');
+        const folderInput = document.getElementById('jsonFolderInput');
+        const chooseFiles = document.getElementById('chooseJsonFiles');
+        const selectedFiles = document.getElementById('selectedJsonFiles');
+
+        const dataTransfer = new DataTransfer();
+
+        const isJsonFile = file => file.name.toLowerCase().endsWith('.json') || file.type === 'application/json';
+
+        const renderSelectedFiles = () => {
+            selectedFiles.innerHTML = '';
+
+            Array.from(fileInput.files).forEach(file => {
+                const item = document.createElement('li');
+                item.className = 'list-group-item d-flex justify-content-between align-items-center gap-3';
+                item.textContent = file.webkitRelativePath || file.name;
+
+                const size = document.createElement('span');
+                size.className = 'badge text-bg-light';
+                size.textContent = `${Math.ceil(file.size / 1024)} KB`;
+                item.appendChild(size);
+
+                selectedFiles.appendChild(item);
+            });
+        };
+
+        const addFiles = files => {
+            Array.from(files)
+                .filter(isJsonFile)
+                .forEach(file => dataTransfer.items.add(file));
+
+            fileInput.files = dataTransfer.files;
+            renderSelectedFiles();
+        };
+
+        const readEntryFiles = entry => new Promise(resolve => {
+            if (entry.isFile) {
+                entry.file(file => resolve([file]), () => resolve([]));
+                return;
+            }
+
+            if (!entry.isDirectory) {
+                resolve([]);
+                return;
+            }
+
+            const reader = entry.createReader();
+            const files = [];
+
+            const readEntries = () => {
+                reader.readEntries(async entries => {
+                    if (entries.length === 0) {
+                        resolve(files);
+                        return;
+                    }
+
+                    const childFiles = await Promise.all(entries.map(readEntryFiles));
+                    files.push(...childFiles.flat());
+                    readEntries();
+                }, () => resolve(files));
+            };
+
+            readEntries();
+        });
+
+        const addDroppedItems = async items => {
+            const entries = Array.from(items)
+                .map(item => item.webkitGetAsEntry?.())
+                .filter(Boolean);
+
+            if (entries.length === 0) {
+                return false;
+            }
+
+            const files = (await Promise.all(entries.map(readEntryFiles))).flat();
+            addFiles(files);
+            return true;
+        };
+
+        chooseFiles.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => {
+            addFiles(fileInput.files);
+        });
+        folderInput.addEventListener('change', () => {
+            addFiles(folderInput.files);
+            folderInput.value = '';
+        });
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                fileInput.click();
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, event => {
+                event.preventDefault();
+                dropZone.classList.add('is-dragging');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, event => {
+                event.preventDefault();
+                dropZone.classList.remove('is-dragging');
+            });
+        });
+
+        dropZone.addEventListener('drop', async event => {
+            const handledItems = await addDroppedItems(event.dataTransfer.items);
+
+            if (!handledItems) {
+                addFiles(event.dataTransfer.files);
+            }
+        });
+    </script>
+}
