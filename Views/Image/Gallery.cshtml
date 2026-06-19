@@ -35,6 +35,11 @@
                 }
             </div>
         </form>
+        <a class="btn btn-outline-primary mb-4"
+           asp-action="DownloadImageUrls"
+           asp-route-searchTerm="@Model.SearchTerm">
+            Download JSON
+        </a>
         <form asp-action="Gallery" method="get" id="galleryPageSizeForm" class="mb-4">
             <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
             <input type="hidden" name="page" value="1" />

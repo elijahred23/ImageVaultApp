@@ -201,6 +201,47 @@ public class ImageController: Controller
             TotalImages = totalImages
         });
     }
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadImageUrls(string searchTerm)
+    {
+        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        var settings = await _vaultContext.UserSettings
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        var query = _vaultContext.Images.Where(i => i.UserId == userId);
+
+        if (settings?.AllowNSFW != true)
+        {
+            query = query.Where(i => !i.IsNSFW);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var trimmedSearchTerm = searchTerm.Trim();
+
+            if (trimmedSearchTerm.Equals("nsfw", StringComparison.OrdinalIgnoreCase))
+            {
+                query = settings?.AllowNSFW == true
+                    ? query.Where(i => i.IsNSFW)
+                    : query.Where(i => false);
+            }
+            else
+            {
+                query = query.Where(i => (i.Title != null && i.Title.Contains(searchTerm)) || (i.Description != null && i.Description.Contains(searchTerm)));
+            }
+        }
+
+        var imageUrls = await query
+            .OrderByDescending(i => i.CreatedAt)
+            .Select(i => i.ImageUrl)
+            .Where(imageUrl => !string.IsNullOrWhiteSpace(imageUrl))
+            .ToListAsync();
+
+        var json = JsonSerializer.SerializeToUtf8Bytes(imageUrls);
+        return File(json, "application/json", "image-urls.json");
+    }
+
     public async Task<IActionResult> Edit(int id)
     {
         var image = await _vaultContext.Images.FindAsync(id);
