@@ -25,9 +25,12 @@
 <form asp-action="Import" method="post" enctype="multipart/form-data" id="jsonImportForm" class="import-form">
     @Html.AntiForgeryToken()
 
-    <div class="form-check form-switch mb-3">
-        <input class="form-check-input" asp-for="IsNSFW" type="checkbox" />
-        <label class="form-check-label" asp-for="IsNSFW">Import as NSFW</label>
+    <div class="mb-3">
+        <label class="form-label" asp-for="IsNSFW">NSFW flag</label>
+        <div class="form-check form-switch">
+            <input class="form-check-input" asp-for="IsNSFW" type="checkbox" />
+            <label class="form-check-label" asp-for="IsNSFW">Queue files in the NSFW import folder</label>
+        </div>
     </div>
 
     <div id="jsonDropZone" class="import-drop-zone mb-3" tabindex="0">
