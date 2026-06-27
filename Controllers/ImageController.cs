@@ -31,25 +31,35 @@ public class ImageController: Controller
         return View();
     }
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(ImageUploadViewModel model)
     {
-        string finalImageUrl;
+        var imageUrls = new List<string>();
 
-        if (!string.IsNullOrWhiteSpace(model.ImageUrl))
+        if (!string.IsNullOrWhiteSpace(model.ImageUrlsJson))
         {
-            finalImageUrl = model.ImageUrl;
+            if (!TryParseImageUrls(model.ImageUrlsJson, out imageUrls, out var validationError))
+            {
+                ModelState.AddModelError(nameof(model.ImageUrlsJson), validationError);
+                return View(model);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(model.ImageUrl))
+        {
+            imageUrls.Add(model.ImageUrl.Trim());
         }
         else if (model.File != null && model.File.Length > 0)
         {
-            finalImageUrl = await ConvertFileToDataUrlAsync(model.File);
-        } else
+            imageUrls.Add(await ConvertFileToDataUrlAsync(model.File));
+        }
+        else
         {
-            ModelState.AddModelError("", "Please select a file.");
+            ModelState.AddModelError(nameof(model.ImageUrlsJson), "Paste a JSON array containing at least one image URL.");
             return View(model);
         }
 
         int id = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-        var image = new Image
+        var images = imageUrls.Select(imageUrl => new Image
         {
             UserId = id,
             Title = model.Title,
@@ -57,10 +67,10 @@ public class ImageController: Controller
             IsNSFW = model.IsNSFW,
             MimeType = model.File?.ContentType,
             FileSizeBytes = model.File?.Length,
-            ImageUrl = finalImageUrl,
-        };
+            ImageUrl = imageUrl,
+        });
 
-        _vaultContext.Images.Add(image);
+        _vaultContext.Images.AddRange(images);
         await _vaultContext.SaveChangesAsync();
 
         return RedirectToAction("Gallery");
@@ -456,6 +466,64 @@ public class ImageController: Controller
         var base64 = Convert.ToBase64String(bytes);
 
         return $"data:{file.ContentType};base64,{base64}";
+    }
+
+    private static bool TryParseImageUrls(string json, out List<string> imageUrls, out string error)
+    {
+        const int maximumImageCount = 2000;
+        imageUrls = [];
+        error = string.Empty;
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                error = "The JSON must be an array of image URL strings.";
+                return false;
+            }
+
+            foreach (var element in document.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(element.GetString()))
+                {
+                    error = "Every array item must be a non-empty image URL string.";
+                    return false;
+                }
+
+                var imageUrl = element.GetString()!.Trim();
+                var isWebUrl = Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri)
+                    && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+                if (!isWebUrl && !imageUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                {
+                    error = $"'{imageUrl}' is not an HTTP, HTTPS, or image data URL.";
+                    return false;
+                }
+
+                imageUrls.Add(imageUrl);
+
+                if (imageUrls.Count > maximumImageCount)
+                {
+                    error = $"A single upload can contain at most {maximumImageCount} images.";
+                    return false;
+                }
+            }
+
+            if (imageUrls.Count == 0)
+            {
+                error = "The JSON array must contain at least one image URL.";
+                return false;
+            }
+
+            return true;
+        }
+        catch (JsonException)
+        {
+            error = "The pasted value is not valid JSON.";
+            return false;
+        }
     }
 
     private ImageImportUploadViewModel CreateImportUploadViewModel(ImageImportUploadViewModel? model = null)

@@ -1,73 +1,208 @@
 @using ImageVaultApp.ViewModels
-@model ImageUploadViewModel;
+@model ImageUploadViewModel
 
-<h2>Upload Image</h2>
+@{
+    ViewData["Title"] = "Upload images";
+}
 
-<form asp-action="Upload" method="post" enctype="multipart/form-data">
-    <div>
-        <label>Title</label>
-        <input name="Title" />
+<div class="upload-page">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Upload images</h1>
+            <p class="text-muted mb-0">Paste a JSON array of image URLs and review every image before saving.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-controller="Image" asp-action="Gallery">Back to Gallery</a>
     </div>
 
-    <div>
-        <label>Description</label>
-        <input name="Description" />
-    </div>
-    <hr />
-
-    <div>
-        <label>Paste Image URL or data:image</label>
-        <input asp-for="ImageUrl" style="width:400px;" id="fileInput" />
-    </div>
-    <p>OR</p>
-    <div>
-        <label>Upload File (optional fallback)</label>
-    </div>
-
-    <div>
-        <label>NSFW</label>
-        <input asp-for="IsNSFW" type="checkbox" />
-    </div>
-    <div>
-        <p>New Image Preview:</p>
-        <img id="preview" src="#" alt="New Image Preview" style="max-width: 300px; display: none;" />
-    </div>
-
-    <button type="submit">Save Image</button>
-</form>
-<script>
-    const fileInput = document.getElementById('fileInput');
-    const preview = document.getElementById("preview");
-
-    const isValidUrl = (string) => {
-        try {
-            new URL(string);
-            return true;
-        } catch (_) {
-            return false;  
-        }
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger" role="alert" asp-validation-summary="All"></div>
     }
-    fileInput.addEventListener('input', function() {
-        const value = this.value;
 
-        if(value.startsWith('data:image') || isValidUrl(value)) {
-            preview.src = value;
-            preview.style.display = 'block';
-        }
-    });
+    <form asp-action="Upload" method="post" id="batchUploadForm">
+        @Html.AntiForgeryToken()
 
-    fileInput.addEventListener('change', function() {
-        const file = this.files[0];
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label" asp-for="Title">Title for all images</label>
+                        <input class="form-control form-control-lg" asp-for="Title" placeholder="e.g. Summer inspiration" />
+                        <div class="form-text">This title will be applied to every image in the array.</div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end pb-1">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" asp-for="IsNSFW" type="checkbox" />
+                            <label class="form-check-label" asp-for="IsNSFW">Mark all as NSFW</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" asp-for="Description">Description <span class="text-muted">(optional)</span></label>
+                        <input class="form-control" asp-for="Description" placeholder="Applied to every image" />
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        if(file) {
-            const reader = new FileReader();
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <label class="form-label fw-semibold mb-0" asp-for="ImageUrlsJson">Image URL array</label>
+                    <div class="d-flex gap-2">
+                        <input class="visually-hidden" id="jsonFileInput" type="file" accept=".json,application/json" />
+                        <button class="btn btn-sm btn-outline-secondary" id="chooseJsonButton" type="button">Choose JSON file</button>
+                        <button class="btn btn-sm btn-primary" id="pasteJsonButton" type="button">Paste JSON</button>
+                    </div>
+                </div>
+                <textarea class="form-control font-monospace upload-json-input" asp-for="ImageUrlsJson" id="imageUrlsJson" rows="7" spellcheck="false" placeholder='[&#10;  "https://example.com/image-1.jpg",&#10;  "https://example.com/image-2.jpg"&#10;]'></textarea>
+                <div class="d-flex justify-content-between gap-3 mt-2">
+                    <div id="jsonFeedback" class="form-text">Accepts HTTP, HTTPS, and image data URLs. Maximum 500 images.</div>
+                    <div id="imageCount" class="form-text text-nowrap">0 images</div>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-primary btn-lg" id="saveImagesButton" type="submit" disabled>Save images</button>
 
-            reader.onload = function (e) {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
+        <div id="previewSection" class="mb-4 d-none">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 mb-0">Preview</h2>
+                <button class="btn btn-sm btn-outline-danger" id="clearImagesButton" type="button">Clear all</button>
+            </div>
+            <div id="imagePreviewGrid" class="upload-preview-grid"></div>
+        </div>
+
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const textarea = document.getElementById('imageUrlsJson');
+            const pasteButton = document.getElementById('pasteJsonButton');
+            const chooseButton = document.getElementById('chooseJsonButton');
+            const fileInput = document.getElementById('jsonFileInput');
+            const feedback = document.getElementById('jsonFeedback');
+            const count = document.getElementById('imageCount');
+            const previewSection = document.getElementById('previewSection');
+            const previewGrid = document.getElementById('imagePreviewGrid');
+            const clearButton = document.getElementById('clearImagesButton');
+            const saveButton = document.getElementById('saveImagesButton');
+            const maximumImageCount = 2000;
+
+            const isImageSource = value => {
+                if (typeof value !== 'string' || value.trim() === '') return false;
+                if (value.trim().toLowerCase().startsWith('data:image/')) return true;
+
+                try {
+                    const url = new URL(value.trim());
+                    return url.protocol === 'http:' || url.protocol === 'https:';
+                } catch {
+                    return false;
+                }
             };
 
-            reader.readAsDataURL(file);
-        }
-    });
-</script>
+            const setFeedback = (message, isError = false) => {
+                feedback.textContent = message;
+                feedback.classList.toggle('text-danger', isError);
+                feedback.classList.toggle('text-muted', !isError);
+            };
+
+            const parseUrls = () => {
+                const value = textarea.value.trim();
+                if (!value) return { urls: [], error: null };
+
+                try {
+                    const parsed = JSON.parse(value);
+                    if (!Array.isArray(parsed)) return { urls: [], error: 'JSON must be an array.' };
+                    if (parsed.length > maximumImageCount) return { urls: [], error: `Use no more than ${maximumImageCount} images at once.` };
+                    if (!parsed.every(isImageSource)) return { urls: [], error: 'Every item must be a valid HTTP, HTTPS, or image data URL.' };
+                    return { urls: parsed.map(url => url.trim()), error: null };
+                } catch {
+                    return { urls: [], error: 'Enter a valid JSON array.' };
+                }
+            };
+
+            const removeUrl = index => {
+                const result = parseUrls();
+                if (result.error) return;
+                result.urls.splice(index, 1);
+                textarea.value = result.urls.length ? JSON.stringify(result.urls, null, 2) : '';
+                render();
+            };
+
+            const render = () => {
+                const result = parseUrls();
+                previewGrid.replaceChildren();
+                count.textContent = `${result.urls.length} ${result.urls.length === 1 ? 'image' : 'images'}`;
+                saveButton.disabled = Boolean(result.error) || result.urls.length === 0;
+                previewSection.classList.toggle('d-none', result.urls.length === 0);
+
+                if (result.error) {
+                    setFeedback(result.error, true);
+                    return;
+                }
+
+                setFeedback(result.urls.length ? 'Ready to upload.' : 'Accepts HTTP, HTTPS, and image data URLs. Maximum 500 images.');
+
+                result.urls.forEach((url, index) => {
+                    const card = document.createElement('article');
+                    card.className = 'card upload-preview-card overflow-hidden';
+
+                    const image = document.createElement('img');
+                    image.className = 'upload-preview-image';
+                    image.src = url;
+                    image.alt = `Image preview ${index + 1}`;
+                    image.loading = 'lazy';
+                    image.addEventListener('error', () => card.classList.add('is-broken'));
+
+                    const body = document.createElement('div');
+                    body.className = 'card-body p-2 d-flex align-items-center gap-2';
+
+                    const label = document.createElement('span');
+                    label.className = 'small text-muted text-truncate flex-grow-1';
+                    label.textContent = `${index + 1}. ${url}`;
+                    label.title = url;
+
+                    const removeButton = document.createElement('button');
+                    removeButton.className = 'btn btn-sm btn-outline-danger';
+                    removeButton.type = 'button';
+                    removeButton.textContent = 'Remove';
+                    removeButton.setAttribute('aria-label', `Remove image ${index + 1}`);
+                    removeButton.addEventListener('click', () => removeUrl(index));
+
+                    body.append(label, removeButton);
+                    card.append(image, body);
+                    previewGrid.appendChild(card);
+                });
+            };
+
+            pasteButton.addEventListener('click', async () => {
+                try {
+                    textarea.value = await navigator.clipboard.readText();
+                    render();
+                } catch {
+                    textarea.focus();
+                    setFeedback('Clipboard access was blocked. Paste into the box with your keyboard.', true);
+                }
+            });
+
+            chooseButton.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', async () => {
+                const file = fileInput.files[0];
+                if (!file) return;
+                textarea.value = await file.text();
+                fileInput.value = '';
+                render();
+            });
+
+            clearButton.addEventListener('click', () => {
+                textarea.value = '';
+                render();
+                textarea.focus();
+            });
+
+            textarea.addEventListener('input', render);
+            render();
+        })();
+    </script>
+}
