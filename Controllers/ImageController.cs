@@ -209,6 +209,7 @@ public class ImageController: Controller
                 Title = g.Key ?? string.Empty,
                 Count = g.Count()
             })
+            .OrderByDescending(ut => ut.Count)
             .ToListAsync();
 
         ViewBag.Settings = settings;
