@@ -28,11 +28,11 @@ public class ImageController: Controller
     [HttpGet]
     public IActionResult Upload()
     {
-        return View();
+        return View(CreateUploadPageViewModel());
     }
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Upload(ImageUploadViewModel model)
+    public async Task<IActionResult> Upload([Bind(Prefix = "Upload")] ImageUploadViewModel model)
     {
         var imageUrls = new List<string>();
 
@@ -40,8 +40,8 @@ public class ImageController: Controller
         {
             if (!TryParseImageUrls(model.ImageUrlsJson, out imageUrls, out var validationError))
             {
-                ModelState.AddModelError(nameof(model.ImageUrlsJson), validationError);
-                return View(model);
+                ModelState.AddModelError($"Upload.{nameof(model.ImageUrlsJson)}", validationError);
+                return View(CreateUploadPageViewModel(upload: model));
             }
         }
         else if (!string.IsNullOrWhiteSpace(model.ImageUrl))
@@ -54,8 +54,8 @@ public class ImageController: Controller
         }
         else
         {
-            ModelState.AddModelError(nameof(model.ImageUrlsJson), "Paste a JSON array containing at least one image URL.");
-            return View(model);
+            ModelState.AddModelError($"Upload.{nameof(model.ImageUrlsJson)}", "Paste a JSON array containing at least one image URL.");
+            return View(CreateUploadPageViewModel(upload: model));
         }
 
         int id = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
@@ -79,17 +79,19 @@ public class ImageController: Controller
     [HttpGet]
     public IActionResult Import()
     {
-        return View(CreateImportUploadViewModel());
+        return Redirect($"{Url.Action(nameof(Upload))}#import-json");
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Import(ImageImportUploadViewModel model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Import(
+        [Bind(Prefix = "Import")] ImageImportUploadViewModel model,
+        CancellationToken cancellationToken)
     {
         if (model.JsonFiles.Count == 0)
         {
-            ModelState.AddModelError(nameof(model.JsonFiles), "Select at least one JSON file to import.");
-            return View(CreateImportUploadViewModel(model));
+            ModelState.AddModelError($"Import.{nameof(model.JsonFiles)}", "Select at least one JSON file to import.");
+            return View("Upload", CreateUploadPageViewModel(import: model, activeTab: "import"));
         }
 
         var acceptedCount = 0;
@@ -100,7 +102,7 @@ public class ImageController: Controller
         {
             if (!Path.GetExtension(file.FileName).Equals(".json", StringComparison.OrdinalIgnoreCase))
             {
-                ModelState.AddModelError(nameof(model.JsonFiles), $"{file.FileName} is not a JSON file.");
+                ModelState.AddModelError($"Import.{nameof(model.JsonFiles)}", $"{file.FileName} is not a JSON file.");
                 continue;
             }
 
@@ -110,7 +112,7 @@ public class ImageController: Controller
 
             if (!await ContainsImageSourceArrayAsync(memoryStream, cancellationToken))
             {
-                ModelState.AddModelError(nameof(model.JsonFiles), $"{file.FileName} must contain a non-empty JSON array of image source strings.");
+                ModelState.AddModelError($"Import.{nameof(model.JsonFiles)}", $"{file.FileName} must contain a non-empty JSON array of image source strings.");
                 continue;
             }
 
@@ -123,7 +125,7 @@ public class ImageController: Controller
 
         foreach (var file in model.JsonFiles.Where(file => file.Length == 0))
         {
-            ModelState.AddModelError(nameof(model.JsonFiles), $"{file.FileName} is empty.");
+            ModelState.AddModelError($"Import.{nameof(model.JsonFiles)}", $"{file.FileName} is empty.");
         }
 
         model.ImportedFileCount = acceptedCount;
@@ -135,7 +137,7 @@ public class ImageController: Controller
                 : $"Queued {acceptedCount} JSON files for import.";
         }
 
-        return View(CreateImportUploadViewModel(model));
+        return View("Upload", CreateUploadPageViewModel(import: model, activeTab: "import"));
     }
 
     [HttpGet]
@@ -531,6 +533,19 @@ public class ImageController: Controller
         model ??= new ImageImportUploadViewModel();
         model.DropFolderPath = GetImportDropFolder(model.IsNSFW);
         return model;
+    }
+
+    private ImageUploadPageViewModel CreateUploadPageViewModel(
+        ImageUploadViewModel? upload = null,
+        ImageImportUploadViewModel? import = null,
+        string activeTab = "images")
+    {
+        return new ImageUploadPageViewModel
+        {
+            Upload = upload ?? new ImageUploadViewModel(),
+            Import = CreateImportUploadViewModel(import),
+            ActiveTab = activeTab
+        };
     }
 
     private string GetImportDropFolder(bool isNsfw)

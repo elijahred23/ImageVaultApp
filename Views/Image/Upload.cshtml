@@ -1,5 +1,5 @@
 @using ImageVaultApp.ViewModels
-@model ImageUploadViewModel
+@model ImageUploadPageViewModel
 
 @{
     ViewData["Title"] = "Upload images";
@@ -9,12 +9,23 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
             <h1 class="h3 mb-1">Upload images</h1>
-            <p class="text-muted mb-0">Paste a JSON array of image URLs and review every image before saving.</p>
+            <p class="text-muted mb-0">Add images directly or queue JSON files for background import.</p>
         </div>
         <a class="btn btn-outline-secondary" asp-controller="Image" asp-action="Gallery">Back to Gallery</a>
     </div>
 
-    @if (!ViewData.ModelState.IsValid)
+    <ul class="nav nav-tabs mb-4" id="uploadTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(Model.ActiveTab == "images" ? "active" : null)" id="images-tab" data-bs-toggle="tab" data-bs-target="#upload-images" type="button" role="tab" aria-controls="upload-images" aria-selected="@(Model.ActiveTab == "images" ? "true" : "false")">Upload images</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(Model.ActiveTab == "import" ? "active" : null)" id="import-tab" data-bs-toggle="tab" data-bs-target="#import-json" type="button" role="tab" aria-controls="import-json" aria-selected="@(Model.ActiveTab == "import" ? "true" : "false")">Import JSON files</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="uploadTabContent">
+    <div class="tab-pane fade @(Model.ActiveTab == "images" ? "show active" : null)" id="upload-images" role="tabpanel" aria-labelledby="images-tab" tabindex="0">
+    @if (!ViewData.ModelState.IsValid && Model.ActiveTab == "images")
     {
         <div class="alert alert-danger" role="alert" asp-validation-summary="All"></div>
     }
@@ -22,56 +33,152 @@
     <form asp-action="Upload" method="post" id="batchUploadForm">
         @Html.AntiForgeryToken()
 
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm mb-4 upload-form-card">
             <div class="card-body p-4">
                 <div class="row g-3">
                     <div class="col-md-8">
-                        <label class="form-label" asp-for="Title">Title for all images</label>
-                        <input class="form-control form-control-lg" asp-for="Title" placeholder="e.g. Summer inspiration" />
+                        <label class="form-label" asp-for="Upload.Title">Title for all images</label>
+                        <input class="form-control form-control-lg" asp-for="Upload.Title" placeholder="e.g. Summer inspiration" />
                         <div class="form-text">This title will be applied to every image in the array.</div>
                     </div>
                     <div class="col-md-4 d-flex align-items-end pb-1">
                         <div class="form-check form-switch">
-                            <input class="form-check-input" asp-for="IsNSFW" type="checkbox" />
-                            <label class="form-check-label" asp-for="IsNSFW">Mark all as NSFW</label>
+                            <input class="form-check-input" asp-for="Upload.IsNSFW" type="checkbox" />
+                            <label class="form-check-label" asp-for="Upload.IsNSFW">Mark all as NSFW</label>
                         </div>
                     </div>
                     <div class="col-12">
-                        <label class="form-label" asp-for="Description">Description <span class="text-muted">(optional)</span></label>
-                        <input class="form-control" asp-for="Description" placeholder="Applied to every image" />
+                        <label class="form-label" asp-for="Upload.Description">Description <span class="text-muted">(optional)</span></label>
+                        <input class="form-control" asp-for="Upload.Description" placeholder="Applied to every image" />
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card border-0 shadow-sm mb-4 upload-form-card">
             <div class="card-body p-4">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-                    <label class="form-label fw-semibold mb-0" asp-for="ImageUrlsJson">Image URL array</label>
+                    <label class="form-label fw-semibold mb-0" asp-for="Upload.ImageUrlsJson">Image URL array</label>
                     <div class="d-flex gap-2">
                         <input class="visually-hidden" id="jsonFileInput" type="file" accept=".json,application/json" />
                         <button class="btn btn-sm btn-outline-secondary" id="chooseJsonButton" type="button">Choose JSON file</button>
-                        <button class="btn btn-sm btn-primary" id="pasteJsonButton" type="button">Paste JSON</button>
                     </div>
                 </div>
-                <textarea class="form-control font-monospace upload-json-input" asp-for="ImageUrlsJson" id="imageUrlsJson" rows="7" spellcheck="false" placeholder='[&#10;  "https://example.com/image-1.jpg",&#10;  "https://example.com/image-2.jpg"&#10;]'></textarea>
+                <textarea class="form-control font-monospace upload-json-input" asp-for="Upload.ImageUrlsJson" id="imageUrlsJson" rows="7" spellcheck="false" placeholder='[&#10;  "https://example.com/image-1.jpg",&#10;  "https://example.com/image-2.jpg"&#10;]'></textarea>
                 <div class="d-flex justify-content-between gap-3 mt-2">
-                    <div id="jsonFeedback" class="form-text">Accepts HTTP, HTTPS, and image data URLs. Maximum 500 images.</div>
+                    <div id="jsonFeedback" class="form-text">Accepts HTTP, HTTPS, and image data URLs. Maximum 2,000 images.</div>
                     <div id="imageCount" class="form-text text-nowrap">0 images</div>
                 </div>
             </div>
         </div>
-        <button class="btn btn-primary btn-lg" id="saveImagesButton" type="submit" disabled>Save images</button>
+        <button class="btn btn-primary btn-lg px-4" id="saveImagesButton" type="submit" disabled>Save images</button>
 
-        <div id="previewSection" class="mb-4 d-none">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2 class="h5 mb-0">Preview</h2>
-                <button class="btn btn-sm btn-outline-danger" id="clearImagesButton" type="button">Clear all</button>
+        <section class="upload-workspace mt-4 mb-4" aria-labelledby="imageWorkspaceHeading">
+            <div class="upload-parser-bar">
+                <div>
+                    <span class="upload-eyebrow">Browser helper</span>
+                    <h2 class="h6 mb-1">HTML image parser script</h2>
+                    <p class="small text-muted mb-0">Copy and run this script in a page console, then paste the resulting JSON here.</p>
+                </div>
+                <button class="btn btn-outline-primary upload-action-button" id="copyParserButton" type="button">
+                    <svg class="upload-action-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                        <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"></path>
+                    </svg>
+                    Copy copy-urls.js
+                </button>
             </div>
-            <div id="imagePreviewGrid" class="upload-preview-grid"></div>
-        </div>
+
+            <div class="upload-preview-heading">
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <h2 class="h5 mb-0" id="imageWorkspaceHeading">Image preview</h2>
+                        <span class="upload-count-badge" id="previewCountBadge">0</span>
+                    </div>
+                    <p class="small text-muted mb-0 mt-1" id="previewStatus">Paste or choose a JSON array to populate the preview.</p>
+                </div>
+                <div class="upload-preview-actions" aria-label="Image array actions">
+                    <button class="btn btn-sm btn-outline-danger upload-action-button" id="deleteBrokenButton" type="button" disabled>
+                        Delete broken <span class="upload-button-count" id="brokenCount">0</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger upload-action-button" id="deleteSvgButton" type="button" disabled>
+                        Delete SVG/favicon <span class="upload-button-count" id="svgCount">0</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger upload-action-button" id="deleteDuplicatesButton" type="button" disabled>
+                        Delete duplicates <span class="upload-button-count" id="duplicateCount">0</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary upload-action-button" id="copyJsonButton" type="button" disabled>Copy JSON</button>
+                    <button class="btn btn-sm btn-primary upload-action-button" id="pasteJsonButton" type="button">Paste JSON</button>
+                </div>
+            </div>
+
+            <div id="previewEmptyState" class="upload-empty-state">
+                <span class="upload-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                        <circle cx="8.5" cy="9" r="1.5"></circle>
+                        <path d="m4 17 5-5 4 4 2-2 5 5"></path>
+                    </svg>
+                </span>
+                <strong>No images yet</strong>
+                <span>Paste JSON to automatically fill the Image URL array and render previews.</span>
+            </div>
+            <div id="imagePreviewGrid" class="upload-preview-grid d-none"></div>
+        </section>
 
     </form>
+    </div>
+
+    <div class="tab-pane fade @(Model.ActiveTab == "import" ? "show active" : null)" id="import-json" role="tabpanel" aria-labelledby="import-tab" tabindex="0">
+        @if (!string.IsNullOrWhiteSpace(Model.Import.StatusMessage))
+        {
+            <div class="alert alert-success" role="alert">@Model.Import.StatusMessage</div>
+        }
+
+        @if (!ViewData.ModelState.IsValid && Model.ActiveTab == "import")
+        {
+            <div class="alert alert-danger" role="alert" asp-validation-summary="All"></div>
+        }
+
+        <div class="mb-4">
+            <h2 class="h4 mb-1">Import JSON files</h2>
+            <p class="text-muted mb-0">Queue JSON image source arrays for the ImageVault import service.</p>
+        </div>
+
+        <form asp-action="Import" method="post" enctype="multipart/form-data" id="jsonImportForm" class="import-form">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Import.IsNSFW">NSFW flag</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" asp-for="Import.IsNSFW" type="checkbox" />
+                    <label class="form-check-label" asp-for="Import.IsNSFW">Queue files in the NSFW import folder</label>
+                </div>
+            </div>
+
+            <div id="jsonDropZone" class="import-drop-zone mb-3" tabindex="0">
+                <div class="import-drop-zone__content">
+                    <div class="import-drop-zone__title">Drop JSON files here</div>
+                    <div class="text-muted">or choose files from a folder</div>
+                </div>
+                <input asp-for="Import.JsonFiles" id="importJsonFileInput" class="visually-hidden" type="file" accept=".json,application/json" multiple />
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <button class="btn btn-outline-primary" type="button" id="chooseImportJsonFiles">Choose JSON Files</button>
+                <label class="btn btn-outline-secondary mb-0" for="jsonFolderInput">Choose Folder</label>
+                <input id="jsonFolderInput" class="visually-hidden" type="file" accept=".json,application/json" multiple webkitdirectory directory />
+                <button class="btn btn-primary" type="submit">Queue Import</button>
+            </div>
+
+            <div class="small text-muted mb-3">
+                Files are copied to <code>@Model.Import.DropFolderPath</code> for the background import service to process.
+            </div>
+
+            <ul id="selectedJsonFiles" class="list-group import-file-list"></ul>
+        </form>
+    </div>
+    </div>
 </div>
 
 @section Scripts {
@@ -83,11 +190,23 @@
             const fileInput = document.getElementById('jsonFileInput');
             const feedback = document.getElementById('jsonFeedback');
             const count = document.getElementById('imageCount');
-            const previewSection = document.getElementById('previewSection');
             const previewGrid = document.getElementById('imagePreviewGrid');
-            const clearButton = document.getElementById('clearImagesButton');
+            const previewEmptyState = document.getElementById('previewEmptyState');
+            const previewCountBadge = document.getElementById('previewCountBadge');
+            const previewStatus = document.getElementById('previewStatus');
+            const brokenCount = document.getElementById('brokenCount');
+            const svgCount = document.getElementById('svgCount');
+            const duplicateCount = document.getElementById('duplicateCount');
+            const deleteBrokenButton = document.getElementById('deleteBrokenButton');
+            const deleteSvgButton = document.getElementById('deleteSvgButton');
+            const deleteDuplicatesButton = document.getElementById('deleteDuplicatesButton');
+            const copyJsonButton = document.getElementById('copyJsonButton');
+            const copyParserButton = document.getElementById('copyParserButton');
             const saveButton = document.getElementById('saveImagesButton');
             const maximumImageCount = 2000;
+            const parserScriptUrl = '@Url.Content("~/js/copy-urls.js")';
+            let imageLoadStates = [];
+            let renderVersion = 0;
 
             const isImageSource = value => {
                 if (typeof value !== 'string' || value.trim() === '') return false;
@@ -107,6 +226,44 @@
                 feedback.classList.toggle('text-muted', !isError);
             };
 
+            const writeClipboard = async text => {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    return;
+                }
+
+                const copyArea = document.createElement('textarea');
+                copyArea.value = text;
+                copyArea.setAttribute('readonly', '');
+                copyArea.style.position = 'fixed';
+                copyArea.style.top = '-9999px';
+                document.body.appendChild(copyArea);
+                copyArea.select();
+                const copied = document.execCommand('copy');
+                copyArea.remove();
+                if (!copied) throw new Error('Clipboard access was blocked.');
+            };
+
+            const getComparablePath = value => {
+                try {
+                    return decodeURIComponent(new URL(value).pathname).toLowerCase();
+                } catch {
+                    try {
+                        return decodeURIComponent(value.split(/[?#]/)[0]).toLowerCase();
+                    } catch {
+                        return value.split(/[?#]/)[0].toLowerCase();
+                    }
+                }
+            };
+
+            const isSvgOrFavicon = value => {
+                const path = getComparablePath(value);
+                const fileName = path.split('/').filter(Boolean).at(-1) || path;
+                return path.endsWith('.svg')
+                    || /^favicon(?:[-_.].*)?\.(ico|png|jpe?g|gif|webp|svg)$/i.test(fileName)
+                    || /^(apple-touch-icon|android-chrome|mstile|safari-pinned-tab|mask-icon)(?:[-_.].*)?\.(ico|png|jpe?g|gif|webp|svg)$/i.test(fileName);
+            };
+
             const parseUrls = () => {
                 const value = textarea.value.trim();
                 if (!value) return { urls: [], error: null };
@@ -122,27 +279,63 @@
                 }
             };
 
+            const setUrls = urls => {
+                textarea.value = urls.length ? JSON.stringify(urls, null, 2) : '';
+                render();
+            };
+
             const removeUrl = index => {
                 const result = parseUrls();
                 if (result.error) return;
                 result.urls.splice(index, 1);
-                textarea.value = result.urls.length ? JSON.stringify(result.urls, null, 2) : '';
-                render();
+                setUrls(result.urls);
+            };
+
+            const updateActionState = urls => {
+                const pending = imageLoadStates.filter(state => state === 'pending').length;
+                const broken = imageLoadStates.filter(state => state === 'broken').length;
+                const removable = urls.filter(isSvgOrFavicon).length;
+                const duplicates = urls.length - new Set(urls).size;
+
+                brokenCount.textContent = broken;
+                svgCount.textContent = removable;
+                duplicateCount.textContent = duplicates;
+                deleteBrokenButton.disabled = broken === 0;
+                deleteSvgButton.disabled = removable === 0;
+                deleteDuplicatesButton.disabled = duplicates === 0;
+                copyJsonButton.disabled = urls.length === 0;
+
+                if (urls.length) {
+                    previewStatus.textContent = pending
+                        ? `Checking ${pending} ${pending === 1 ? 'image' : 'images'}...`
+                        : `${urls.length - broken} showing${broken ? `, ${broken} broken` : ''}.`;
+                }
             };
 
             const render = () => {
+                const currentRenderVersion = ++renderVersion;
                 const result = parseUrls();
                 previewGrid.replaceChildren();
                 count.textContent = `${result.urls.length} ${result.urls.length === 1 ? 'image' : 'images'}`;
+                previewCountBadge.textContent = result.urls.length;
                 saveButton.disabled = Boolean(result.error) || result.urls.length === 0;
-                previewSection.classList.toggle('d-none', result.urls.length === 0);
+                previewGrid.classList.toggle('d-none', result.urls.length === 0);
+                previewEmptyState.classList.toggle('d-none', result.urls.length > 0);
+                imageLoadStates = result.urls.map(() => 'pending');
 
                 if (result.error) {
                     setFeedback(result.error, true);
+                    previewStatus.textContent = result.error;
+                    imageLoadStates = [];
+                    updateActionState([]);
                     return;
                 }
 
-                setFeedback(result.urls.length ? 'Ready to upload.' : 'Accepts HTTP, HTTPS, and image data URLs. Maximum 500 images.');
+                setFeedback(result.urls.length ? 'Ready to upload.' : `Accepts HTTP, HTTPS, and image data URLs. Maximum ${maximumImageCount} images.`);
+                previewStatus.textContent = result.urls.length
+                    ? `Checking ${result.urls.length} ${result.urls.length === 1 ? 'image' : 'images'}...`
+                    : 'Paste or choose a JSON array to populate the preview.';
+                updateActionState(result.urls);
 
                 result.urls.forEach((url, index) => {
                     const card = document.createElement('article');
@@ -150,10 +343,21 @@
 
                     const image = document.createElement('img');
                     image.className = 'upload-preview-image';
-                    image.src = url;
                     image.alt = `Image preview ${index + 1}`;
-                    image.loading = 'lazy';
-                    image.addEventListener('error', () => card.classList.add('is-broken'));
+                    image.loading = 'eager';
+                    image.addEventListener('load', () => {
+                        if (currentRenderVersion !== renderVersion) return;
+                        imageLoadStates[index] = 'loaded';
+                        updateActionState(result.urls);
+                    });
+                    image.addEventListener('error', () => {
+                        if (currentRenderVersion !== renderVersion) return;
+                        imageLoadStates[index] = 'broken';
+                        card.classList.add('is-broken');
+                        image.alt = `Image ${index + 1} failed to load`;
+                        updateActionState(result.urls);
+                    });
+                    image.src = url;
 
                     const body = document.createElement('div');
                     body.className = 'card-body p-2 d-flex align-items-center gap-2';
@@ -195,14 +399,182 @@
                 render();
             });
 
-            clearButton.addEventListener('click', () => {
-                textarea.value = '';
-                render();
-                textarea.focus();
+            deleteBrokenButton.addEventListener('click', () => {
+                const result = parseUrls();
+                if (result.error) return;
+                const remaining = result.urls.filter((_, index) => imageLoadStates[index] !== 'broken');
+                const removed = result.urls.length - remaining.length;
+                setUrls(remaining);
+                setFeedback(`Removed ${removed} broken ${removed === 1 ? 'image' : 'images'}.`);
+            });
+
+            deleteSvgButton.addEventListener('click', () => {
+                const result = parseUrls();
+                if (result.error) return;
+                const remaining = result.urls.filter(url => !isSvgOrFavicon(url));
+                const removed = result.urls.length - remaining.length;
+                setUrls(remaining);
+                setFeedback(`Removed ${removed} SVG/favicon ${removed === 1 ? 'entry' : 'entries'}.`);
+            });
+
+            deleteDuplicatesButton.addEventListener('click', () => {
+                const result = parseUrls();
+                if (result.error) return;
+                const remaining = [...new Set(result.urls)];
+                const removed = result.urls.length - remaining.length;
+                setUrls(remaining);
+                setFeedback(`Removed ${removed} duplicate ${removed === 1 ? 'image' : 'images'}.`);
+            });
+
+            copyJsonButton.addEventListener('click', async () => {
+                const result = parseUrls();
+                if (result.error || !result.urls.length) return;
+                try {
+                    await writeClipboard(JSON.stringify(result.urls, null, 2));
+                    setFeedback(`Copied ${result.urls.length} image ${result.urls.length === 1 ? 'URL' : 'URLs'} as JSON.`);
+                } catch {
+                    setFeedback('Clipboard access was blocked. Copy the array from the text box instead.', true);
+                    textarea.focus();
+                    textarea.select();
+                }
+            });
+
+            copyParserButton.addEventListener('click', async () => {
+                try {
+                    const response = await fetch(parserScriptUrl);
+                    if (!response.ok) throw new Error('Could not load the parser script.');
+                    await writeClipboard(await response.text());
+                    setFeedback('Copied copy-urls.js. Run it in the browser console on the page you want to scan.');
+                    copyParserButton.classList.add('is-copied');
+                    window.setTimeout(() => copyParserButton.classList.remove('is-copied'), 1600);
+                } catch {
+                    setFeedback('Could not copy copy-urls.js. Check browser clipboard permissions.', true);
+                }
             });
 
             textarea.addEventListener('input', render);
             render();
+        })();
+
+        (() => {
+            const importTab = document.getElementById('import-tab');
+            const dropZone = document.getElementById('jsonDropZone');
+            const fileInput = document.getElementById('importJsonFileInput');
+            const folderInput = document.getElementById('jsonFolderInput');
+            const chooseFiles = document.getElementById('chooseImportJsonFiles');
+            const selectedFiles = document.getElementById('selectedJsonFiles');
+            const dataTransfer = new DataTransfer();
+
+            if (window.location.hash === '#import-json') {
+                bootstrap.Tab.getOrCreateInstance(importTab).show();
+            }
+
+            document.querySelectorAll('#uploadTabs [data-bs-toggle="tab"]').forEach(tab => {
+                tab.addEventListener('shown.bs.tab', event => {
+                    const target = event.target.getAttribute('data-bs-target');
+                    history.replaceState(null, '', target === '#import-json' ? '#import-json' : window.location.pathname + window.location.search);
+                });
+            });
+
+            const isJsonFile = file => file.name.toLowerCase().endsWith('.json') || file.type === 'application/json';
+
+            const renderSelectedFiles = () => {
+                selectedFiles.replaceChildren();
+
+                Array.from(fileInput.files).forEach(file => {
+                    const item = document.createElement('li');
+                    item.className = 'list-group-item d-flex justify-content-between align-items-center gap-3';
+                    item.textContent = file.webkitRelativePath || file.name;
+
+                    const size = document.createElement('span');
+                    size.className = 'badge text-bg-light';
+                    size.textContent = `${Math.ceil(file.size / 1024)} KB`;
+                    item.appendChild(size);
+                    selectedFiles.appendChild(item);
+                });
+            };
+
+            const addFiles = files => {
+                Array.from(files)
+                    .filter(isJsonFile)
+                    .forEach(file => dataTransfer.items.add(file));
+
+                fileInput.files = dataTransfer.files;
+                renderSelectedFiles();
+            };
+
+            const readEntryFiles = entry => new Promise(resolve => {
+                if (entry.isFile) {
+                    entry.file(file => resolve([file]), () => resolve([]));
+                    return;
+                }
+
+                if (!entry.isDirectory) {
+                    resolve([]);
+                    return;
+                }
+
+                const reader = entry.createReader();
+                const files = [];
+                const readEntries = () => {
+                    reader.readEntries(async entries => {
+                        if (entries.length === 0) {
+                            resolve(files);
+                            return;
+                        }
+
+                        const childFiles = await Promise.all(entries.map(readEntryFiles));
+                        files.push(...childFiles.flat());
+                        readEntries();
+                    }, () => resolve(files));
+                };
+                readEntries();
+            });
+
+            const addDroppedItems = async items => {
+                const entries = Array.from(items)
+                    .map(item => item.webkitGetAsEntry?.())
+                    .filter(Boolean);
+
+                if (entries.length === 0) return false;
+                addFiles((await Promise.all(entries.map(readEntryFiles))).flat());
+                return true;
+            };
+
+            chooseFiles.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', () => addFiles(fileInput.files));
+            folderInput.addEventListener('change', () => {
+                addFiles(folderInput.files);
+                folderInput.value = '';
+            });
+
+            dropZone.addEventListener('click', () => fileInput.click());
+            dropZone.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    fileInput.click();
+                }
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, event => {
+                    event.preventDefault();
+                    dropZone.classList.add('is-dragging');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, event => {
+                    event.preventDefault();
+                    dropZone.classList.remove('is-dragging');
+                });
+            });
+
+            dropZone.addEventListener('drop', async event => {
+                if (!await addDroppedItems(event.dataTransfer.items)) {
+                    addFiles(event.dataTransfer.files);
+                }
+            });
         })();
     </script>
 }
