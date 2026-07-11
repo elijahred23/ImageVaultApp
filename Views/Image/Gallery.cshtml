@@ -40,6 +40,17 @@
            asp-route-searchTerm="@Model.SearchTerm">
             Download JSON
         </a>
+        <form asp-action="Gallery" method="get" class="mb-4">
+            <select id="uniqueTitleFilter" class="form-select" name="searchTerm" aria-label="Filter by unique title" onchange="this.form.submit()">
+                <option value="">Filter by unique title</option>
+                @foreach(var uniqueTitle in Model.UniqueTitles)
+                {
+                    <option value="@uniqueTitle.Title" selected="@(uniqueTitle.Title == Model.SearchTerm)">
+                        @uniqueTitle.Title (@uniqueTitle.Count)
+                    </option>
+                }
+            </select>   
+        </form>
         <form asp-action="Gallery" method="get" id="galleryPageSizeForm" class="mb-4">
             <input type="hidden" name="searchTerm" value="@Model.SearchTerm" />
             <input type="hidden" name="page" value="1" />
