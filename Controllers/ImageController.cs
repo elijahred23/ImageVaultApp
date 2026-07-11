@@ -201,6 +201,16 @@ public class ImageController: Controller
             image.IsFavorited = favoriteImageIds.Contains(image.Id);
         }
 
+
+        var uniqueTitles = await query
+            .GroupBy(i => i.Title)
+            .Select(g => new UniqueTitle
+            {
+                Title = g.Key ?? string.Empty,
+                Count = g.Count()
+            })
+            .ToListAsync();
+
         ViewBag.Settings = settings;
         ViewBag.FavoriteImageIds = favoriteImageIds;
 
@@ -210,7 +220,8 @@ public class ImageController: Controller
             SearchTerm = searchTerm,
             Page = page,
             PageSize = pageSize,
-            TotalImages = totalImages
+            TotalImages = totalImages,
+            UniqueTitles = uniqueTitles
         });
     }
 

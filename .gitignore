@@ -12,7 +12,10 @@ out/
 
 # IDE/editor folders
 .vs/
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
 .idea/
 
 # Logs
